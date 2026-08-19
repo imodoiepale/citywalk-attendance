@@ -10,6 +10,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid: 'Incorrect email or password.',
   deactivated: 'Your account has been deactivated. Contact your branch manager or HR.',
   forbidden: "You don't have access to that page.",
+  'link-invalid': 'That link is not valid. Request a new one.',
+  'link-expired': 'That link has expired or was already used. Request a new one.',
 }
 
 export default async function LoginPage({
@@ -32,6 +34,11 @@ export default async function LoginPage({
             Check your email to confirm your account, then sign in.
           </p>
         )}
+        {params.notice === 'reset-sent' && (
+          <p className="rounded-lg bg-[#12B76A]/10 px-3 py-2 text-sm text-[#12B76A]">
+            If that address has an account, a reset link is on its way.
+          </p>
+        )}
         {errorMessage && (
           <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage}</p>
         )}
@@ -42,7 +49,15 @@ export default async function LoginPage({
             <Input id="email" name="email" type="email" required autoComplete="email" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <Input id="password" name="password" type="password" required autoComplete="current-password" />
           </div>
           <Button type="submit" className="w-full">

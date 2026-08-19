@@ -4,6 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PUBLIC_PREFIXES = [
   '/login',
   '/signup',
+  '/forgot-password',
+  // The recovery callback must be reachable without a session — establishing
+  // one is the whole point of it. /set-password is NOT listed: it requires the
+  // session the callback just created, and gates on it itself.
+  '/callback',
   '/manifest.webmanifest',
   '/sw.js',
   '/workbox-',

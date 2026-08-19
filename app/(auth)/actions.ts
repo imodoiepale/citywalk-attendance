@@ -63,3 +63,44 @@ export async function signOutAction() {
   await supabase.auth.signOut()
   redirect('/login')
 }
+
+export async function setPasswordAction(formData: FormData) {
+  const password = String(formData.get('password') ?? '')
+  const confirm = String(formData.get('confirm') ?? '')
+
+  if (password.length < 8) {
+    redirect('/set-password?error=weak-password')
+  }
+  if (password !== confirm) {
+    redirect('/set-password?error=mismatch')
+  }
+
+  const supabase = await createClient()
+  // Relies on the session established by the recovery link in
+  // app/(auth)/callback/route.ts — updateUser applies to the current user, so
+  // there is no way to aim this at somebody else's account.
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    redirect(`/set-password?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/?notice=password-set')
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get('email') ?? '').trim()
+  if (!email) {
+    redirect('/forgot-password?error=missing')
+  }
+
+  const supabase = await createClient()
+  const origin = String(formData.get('origin') ?? '')
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/callback?type=recovery`,
+  })
+
+  // Always report the same thing, sent or not: telling an anonymous visitor
+  // whether an address has an account here is an account-enumeration leak.
+  redirect('/login?notice=reset-sent')
+}
