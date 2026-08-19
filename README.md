@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Citywalk Attendance
 
-## Getting Started
+A signed-in, multi-user attendance PWA for Citywalk branches — clock in/out on a live shift dial (visually inspired by DepthMe's ritual session timer), request and approve leave, a daily-hours calendar, per-branch reports, and role-based access.
 
-First, run the development server:
+Full scope, phasing and the roadmap (geofencing, biometrics, payroll sync, scheduling, AI anomaly detection) are documented in [`docs/prd.md`](./docs/prd.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Getting started
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Create a Supabase project** (supabase.com — free tier is enough to start).
+2. **Run the migration** against it: in the Supabase SQL Editor, run `supabase/migrations/20260819000001_schema.sql`, then `supabase/seed.sql`. (Or via the CLI: `supabase link`, then `supabase db push`.)
+3. **Copy the env template** and fill in your project's values (Project Settings → API):
+   ```bash
+   cp .env.example .env.local
+   ```
+4. **Install and run**:
+   ```bash
+   npm install
+   npm run dev
+   ```
+5. Open [http://localhost:3000](http://localhost:3000), sign up (you'll pick a branch), and you're in.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To make your account an Admin/Branch Manager/HR-Accounts (rather than the default Staff), update your `role` in the `profiles` table directly for your very first account — after that, use `/admin/users` in the app.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+Next.js 16 (App Router, forced to webpack — see note below) + TypeScript + Tailwind CSS v4 + shadcn-style hand-rolled primitives + `@supabase/ssr` + `@supabase/supabase-js` + `@ducanh2912/next-pwa`. Design tokens are ported from `citywalk-delivery-management-system` so this app, the DMS, and the Citywalk Portal Hub read as one product family.
 
-To learn more about Next.js, take a look at the following resources:
+`dev`/`build` pass `--webpack` explicitly: Next 16 defaults to Turbopack, which `@ducanh2912/next-pwa`'s service-worker generation doesn't yet support.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Data & auth
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Everything is backed by Postgres via Supabase, scoped with Row Level Security — see `docs/prd.md` §6 for the full data model, and the migration file itself for the RLS policies and RPCs. Sessions are cookie-based (not `localStorage`), since branch devices are often shared kiosks.
 
-## Deploy on Vercel
+## Roles
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Staff / Branch Manager / HR-Accounts / Admin — see `docs/prd.md` §2. What each role can actually do is stored in the `role_permissions` table and editable at `/admin/permissions`, not hardcoded.

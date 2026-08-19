@@ -1,0 +1,298 @@
+/* Citywalk time dial — structurally ported from DepthMe's ritual session timer
+   (RitualSessionScreen.css), reworked from a meditation countdown into a
+   live elapsed-shift clock: no rotating artwork, a conic-gradient sunburst
+   stands in for "alive" motion, and the progress ring counts UP instead of
+   down, shifting gold -> amber -> red as a shift moves toward / past 8h. */
+
+@property --dial-accent-start {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ab8704;
+}
+@property --dial-accent-end {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #fdec06;
+}
+
+.time-dial-scope {
+  --dial-accent-start: #ab8704;
+  --dial-accent-end: #fdec06;
+  transition:
+    --dial-accent-start 1s cubic-bezier(0.22, 1, 0.36, 1),
+    --dial-accent-end 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.time-dial-scope[data-state="idle"] {
+  --dial-accent-start: #6b7280;
+  --dial-accent-end: #9aa0a6;
+}
+.time-dial-scope[data-state="approaching"] {
+  --dial-accent-start: #ab8704;
+  --dial-accent-end: #f5a524;
+}
+.time-dial-scope[data-state="overtime"] {
+  --dial-accent-start: #846801;
+  --dial-accent-end: #e10717;
+}
+
+.time-dial {
+  position: relative;
+  display: grid;
+  width: min(78vw, 19rem);
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0 auto;
+  border-radius: 50%;
+}
+
+.time-dial::before {
+  position: absolute;
+  z-index: 0;
+  content: "";
+  inset: -4.5%;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dial-accent-start) 74%, transparent),
+    rgba(253, 236, 6, 0.14) 38%,
+    rgba(171, 135, 4, 0.16) 61%,
+    color-mix(in srgb, var(--dial-accent-end) 76%, transparent)
+  );
+  filter: blur(18px);
+  opacity: 0.5;
+  -webkit-mask: radial-gradient(circle, transparent 61%, #000 66%, #000 70%, transparent 75%);
+          mask: radial-gradient(circle, transparent 61%, #000 66%, #000 70%, transparent 75%);
+  pointer-events: none;
+  animation: dial-halo-breathe 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-play-state: paused;
+  transition: opacity 1s ease, background 1s ease;
+}
+
+.time-dial__ambient {
+  position: absolute;
+  inset: 3%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 24% 18%, color-mix(in srgb, var(--dial-accent-start) 20%, transparent), transparent 27%),
+    radial-gradient(circle at 76% 72%, color-mix(in srgb, var(--dial-accent-end) 18%, transparent), transparent 38%);
+  filter: blur(24px);
+  opacity: 0.65;
+  animation: dial-ambient-breathe 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-play-state: paused;
+  transition: background 1s ease;
+}
+
+.time-dial.is-active::before,
+.time-dial.is-active .time-dial__ambient {
+  animation-play-state: running;
+}
+
+/* ---- progress ring ---- */
+.time-dial__ring {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.time-dial__track,
+.time-dial__progress,
+.time-dial__progress-glow,
+.time-dial__progress-aura {
+  fill: none;
+  transform-origin: center;
+  vector-effect: non-scaling-stroke;
+}
+
+.time-dial__track {
+  stroke: rgba(159, 166, 216, 0.16);
+  stroke-width: 1.5;
+}
+
+.time-dial__progress,
+.time-dial__progress-glow,
+.time-dial__progress-aura {
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transition: stroke-dashoffset 850ms linear, stroke 1s ease;
+}
+
+.time-dial__progress {
+  stroke-width: 3;
+}
+
+.time-dial__progress-glow {
+  stroke-width: 9;
+  opacity: 0.7;
+  animation: dial-glow-breathe 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-play-state: paused;
+}
+
+.time-dial__progress-aura {
+  stroke-width: 16;
+  opacity: 0.5;
+  animation: dial-aura-breathe 9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation-play-state: paused;
+}
+
+.time-dial.is-active .time-dial__progress-glow,
+.time-dial.is-active .time-dial__progress-aura {
+  animation-play-state: running;
+}
+
+.time-dial-scope[data-state="overtime"] .time-dial__progress-glow,
+.time-dial-scope[data-state="overtime"] .time-dial__progress-aura {
+  animation: dial-overtime-pulse 1.6s ease-in-out infinite;
+}
+
+/* ---- sunburst (stands in for the rotating artwork disc) ---- */
+.time-dial__sunburst-wrap {
+  position: absolute;
+  z-index: 1;
+  inset: 0.6rem;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--brand-ink, #0b0d10);
+  box-shadow: inset 0 0 44px rgba(0, 0, 0, 0.48);
+}
+
+.time-dial__sunburst {
+  position: absolute;
+  inset: -20%;
+  width: 140%;
+  height: 140%;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--dial-accent-start) 22%, transparent) 0deg,
+    transparent 40deg,
+    color-mix(in srgb, var(--dial-accent-end) 18%, transparent) 90deg,
+    transparent 130deg,
+    color-mix(in srgb, var(--dial-accent-start) 22%, transparent) 180deg,
+    transparent 220deg,
+    color-mix(in srgb, var(--dial-accent-end) 18%, transparent) 270deg,
+    transparent 310deg,
+    color-mix(in srgb, var(--dial-accent-start) 22%, transparent) 360deg
+  );
+  opacity: 0.55;
+  animation: dial-sunburst-rotate 90s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.time-dial.is-active .time-dial__sunburst {
+  animation-play-state: running;
+}
+
+.time-dial__overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(3, 7, 26, 0.72) 0%,
+    rgba(3, 7, 26, 0.5) 34%,
+    rgba(3, 7, 26, 0.1) 58%,
+    rgba(2, 5, 20, 0.5) 82%,
+    rgba(2, 5, 20, 0.78) 100%
+  );
+  pointer-events: none;
+}
+
+/* ---- glass ---- */
+.time-dial__glass {
+  position: absolute;
+  z-index: 2;
+  inset: 0.75rem;
+  border-radius: 50%;
+  border: 1px solid rgba(205, 212, 255, 0.14);
+  background: linear-gradient(145deg, rgba(16, 20, 48, 0.42), rgba(4, 8, 23, 0.6));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset -16px -20px 40px rgba(0, 2, 14, 0.36);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+
+/* ---- 12 hour ticks ---- */
+.time-dial__tick {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(226, 229, 250, 0.5);
+  transform-origin: center;
+}
+
+/* ---- center content ---- */
+.time-dial__content {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.time-dial__time {
+  color: #fff;
+  font-size: clamp(2rem, 9vw, 2.65rem);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 3px 20px rgba(1, 3, 18, 0.7);
+}
+
+.time-dial__caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--dial-accent-end) 78%, #fff);
+}
+
+@keyframes dial-halo-breathe {
+  0%, 100% { filter: blur(18px); opacity: 0.5; transform: scale(1); }
+  50% { filter: blur(23px); opacity: 0.9; transform: scale(1.06); }
+}
+
+@keyframes dial-ambient-breathe {
+  0%, 100% { filter: blur(24px); opacity: 0.65; transform: scale(1); }
+  50% { filter: blur(29px); opacity: 0.95; transform: scale(1.1); }
+}
+
+@keyframes dial-glow-breathe {
+  0%, 100% { opacity: 0.7; stroke-width: 9; }
+  50% { opacity: 0.95; stroke-width: 12; }
+}
+
+@keyframes dial-aura-breathe {
+  0%, 100% { opacity: 0.5; stroke-width: 16; }
+  50% { opacity: 0.78; stroke-width: 22; }
+}
+
+@keyframes dial-sunburst-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dial-overtime-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .time-dial *,
+  .time-dial *::before,
+  .time-dial *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
