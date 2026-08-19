@@ -2,7 +2,7 @@
 
 A signed-in, multi-user attendance PWA for Citywalk branches — clock in/out on a live shift dial (visually inspired by DepthMe's ritual session timer), request and approve leave, a daily-hours calendar, per-branch reports, and role-based access.
 
-Full scope, phasing and the roadmap (geofencing, biometrics, payroll sync, scheduling, AI anomaly detection) are documented in [`docs/prd.md`](./docs/prd.md).
+Full documentation — product requirements, system architecture, design spec, RBAC, open questions, go-live checklist, decision log, and runbook — lives in [`docs/`](./docs), starting at [`docs/00-INDEX.md`](./docs/00-INDEX.md).
 
 ## Getting started
 
@@ -19,7 +19,7 @@ Full scope, phasing and the roadmap (geofencing, biometrics, payroll sync, sched
    ```
 5. Open [http://localhost:3000](http://localhost:3000), sign up (you'll pick a branch), and you're in.
 
-To make your account an Admin/Branch Manager/HR-Accounts (rather than the default Staff), update your `role` in the `profiles` table directly for your very first account — after that, use `/admin/users` in the app.
+To make your account an Admin (rather than the default Staff), update your `role` in the `profiles` table directly for your very first account — after that, use `/admin/users` in the app. Full steps: [`docs/06-GO-LIVE-CHECKLIST.md`](./docs/06-GO-LIVE-CHECKLIST.md).
 
 ## Stack
 
@@ -29,8 +29,8 @@ Next.js 16 (App Router, forced to webpack — see note below) + TypeScript + Tai
 
 ## Data & auth
 
-Everything is backed by Postgres via Supabase, scoped with Row Level Security — see `docs/prd.md` §6 for the full data model, and the migration file itself for the RLS policies and RPCs. Sessions are cookie-based (not `localStorage`), since branch devices are often shared kiosks.
+Everything is backed by Postgres via Supabase, scoped with Row Level Security — see [`docs/02-SYSTEM-SPEC.md`](./docs/02-SYSTEM-SPEC.md) for the full data model, and the migration file itself for the RLS policies and RPCs. Sessions are cookie-based (not `localStorage`), since branch devices are often shared kiosks.
 
 ## Roles
 
-Staff / Branch Manager / HR-Accounts / Admin — see `docs/prd.md` §2. What each role can actually do is stored in the `role_permissions` table and editable at `/admin/permissions`, not hardcoded.
+Staff / Branch Manager / HR-Accounts / Admin — see [`docs/04-RBAC-AND-PERMISSIONS.md`](./docs/04-RBAC-AND-PERMISSIONS.md). What each role can actually do is stored in the `role_permissions` table and editable at `/admin/permissions`, not hardcoded.

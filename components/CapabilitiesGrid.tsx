@@ -125,7 +125,7 @@ export default function CapabilitiesGrid() {
       <h2 className="mb-1 text-center text-lg font-semibold text-foreground">Capabilities</h2>
       <p className="mb-5 text-center text-sm text-muted-foreground">
         What&rsquo;s live today, and what&rsquo;s on the roadmap — see{' '}
-        <code className="rounded bg-secondary px-1 py-0.5 text-xs">docs/prd.md</code> in this
+        <code className="rounded bg-secondary px-1 py-0.5 text-xs">docs/00-INDEX.md</code> in this
         repo for the full plan.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
