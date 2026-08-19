@@ -48,4 +48,6 @@ The very first version of this app was a single-page, `localStorage`-only protot
 3. Walk every role through its own screens before calling it live.
 4. Work through `05-OPEN-QUESTIONS.md` with the product owner to scope Phase 2b.
 
-*This bundle describes what's built as of 2026-08-19. No Supabase project has been connected or deployed yet — every claim in these docs about RLS/RBAC behavior has been verified by reading the migration end-to-end, not by running it against a live database.*
+*This bundle describes what's built as of 2026-08-19.*
+
+*The Supabase project **is** connected and all six migrations plus the seed are applied to it. The RLS/RBAC claims in these docs are no longer read-only assertions: they are exercised by two suites — a SQL-level one covering the correction workflow and the approval guards, and `scripts/verify-live.mjs`, which signs a throwaway user in through GoTrue and probes the boundaries (impersonation, self role escalation, cross-branch reads, settings writes) over PostgREST before deleting itself. Run it with `npm run verify:live`.*

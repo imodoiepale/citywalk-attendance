@@ -1,11 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const inter = Inter({
+// Self-hosted rather than next/font/google. The Google Fonts fetch happens at
+// BUILD time, so a build machine that cannot reach fonts.googleapis.com fails
+// the whole deploy — which is exactly what happened here. Shipping the woff2
+// from @fontsource-variable/inter makes the build hermetic, and it is the same
+// typeface, still preloaded and self-hosted the way next/font/google would
+// have ended up serving it anyway.
+const inter = localFont({
+  src: [
+    {
+      path: "../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+      style: "normal",
+    },
+    {
+      path: "../node_modules/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2",
+      style: "italic",
+    },
+  ],
   variable: "--font-inter",
-  subsets: ["latin"],
   display: "swap",
+  weight: "100 900",
+  fallback: ["system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
 });
 
 const APP_NAME = "Citywalk Attendance";

@@ -130,3 +130,36 @@ stay with admin until someone deliberately delegates them through
 /admin/permissions. `admin_update_profile` likewise cannot touch `role` or
 `is_active` — those keep their own RPCs so each privileged capability stays
 separately grantable and separately auditable.
+
+## 2026-08-19 — Clock-out moved to a database RPC
+
+Found by running the live verification script against the real project: a
+clock-out issued straight after a clock-in was rejected with a bare 23514
+check violation, and the shift silently never closed.
+
+Cause: `clock_in_at` defaults to Postgres `now()`, but `clockOutAction` sent
+`new Date().toISOString()` from the Node process. The `punches_out_after_in`
+constraint (`clock_out_at > clock_in_at`) was therefore comparing two different
+clocks. Any skew between the app server and the database — or simply a fast
+in/out — fails.
+
+Fixed by a `clock_out()` RPC that sets the timestamp with `now()`, so both ends
+of the comparison come from one clock. It is `security invoker`, so RLS still
+restricts a caller to their own punch. `greatest(now(), clock_in_at + 1s)`
+covers the degenerate same-instant case.
+
+It returns a null row rather than raising when nothing was open: clocking out
+twice is an ordinary mis-tap, and raising made PostgREST answer 500, which
+would page someone over a double-tapped button. The app turns the null into
+"You have no open shift."
+
+## 2026-08-19 — Inter is self-hosted, not fetched from Google Fonts
+
+`next/font/google` resolves the font at **build** time, so a build machine that
+cannot reach `fonts.googleapis.com` fails the entire deploy. That is not
+hypothetical — it happened on this network and blocked the build outright.
+
+`next/font/local` now points at the woff2 shipped in
+`@fontsource-variable/inter`. Same typeface, still preloaded and self-hosted the
+way `next/font/google` would have served it anyway, minus the network
+dependency. Builds are hermetic.

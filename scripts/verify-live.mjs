@@ -48,10 +48,14 @@ try {
       headers: { apikey: ANON },
     })
   )
-  assert.ok(Array.isArray(branches) && branches.length === 5, `anon can read 5 branches (got ${branches.length})`)
-  const cwk = branches.find((b) => b.code === 'CWK')
-  const csf = branches.find((b) => b.code === 'CSF')
-  console.log(`PASS  anon reads ${branches.length} branches (needed for the signup dropdown)`)
+  // The canonical branch list is mirrored from the DMS seed; assert on the
+  // codes this script depends on rather than a count that will change as
+  // branches open and close.
+  assert.ok(Array.isArray(branches) && branches.length >= 2, `anon can read branches (got ${branches.length})`)
+  const home = branches.find((b) => b.code === 'HOF')
+  const other = branches.find((b) => b.code === 'CSF')
+  assert.ok(home && other, 'HOF and CSF branches exist and are active')
+  console.log(`PASS  anon reads ${branches.length} active branches (the signup dropdown)`)
 
   // --- create a confirmed user (admin API), mirroring signUpAction metadata ---
   const created = await j(
@@ -62,7 +66,7 @@ try {
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: 'E2E Probe', branch_id: cwk.id },
+        user_metadata: { full_name: 'E2E Probe', branch_id: home.id },
       }),
     })
   )
@@ -94,7 +98,7 @@ try {
   assert.equal(profile.length, 1, 'own profile is readable')
   assert.equal(profile[0].full_name, 'E2E Probe', 'trigger copied full_name from metadata')
   assert.equal(profile[0].role, 'staff', 'new users default to staff')
-  assert.equal(profile[0].branch_id, cwk.id, 'trigger copied branch_id from metadata')
+  assert.equal(profile[0].branch_id, home.id, 'trigger copied branch_id from metadata')
   console.log('PASS  handle_new_auth_user created the profile with the right branch and role')
 
   // --- my_permissions() drives the nav and gating ---
@@ -110,7 +114,7 @@ try {
     await fetch(`${URL_BASE}/rest/v1/punches`, {
       method: 'POST',
       headers: { ...authJson, Prefer: 'return=representation' },
-      body: JSON.stringify({ user_id: userId, branch_id: cwk.id }),
+      body: JSON.stringify({ user_id: userId, branch_id: home.id }),
     })
   )
   assert.ok(Array.isArray(punch) && punch[0]?.id, `clock-in inserted: ${JSON.stringify(punch).slice(0, 200)}`)
@@ -121,7 +125,7 @@ try {
   const dupe = await fetch(`${URL_BASE}/rest/v1/punches`, {
     method: 'POST',
     headers: authJson,
-    body: JSON.stringify({ user_id: userId, branch_id: cwk.id }),
+    body: JSON.stringify({ user_id: userId, branch_id: home.id }),
   })
   assert.equal(dupe.status, 409, `second open punch rejected (got ${dupe.status})`)
   console.log('PASS  a second open punch is refused (409) by the unique index')
@@ -158,7 +162,7 @@ try {
   const impersonate = await fetch(`${URL_BASE}/rest/v1/punches`, {
     method: 'POST',
     headers: authJson,
-    body: JSON.stringify({ user_id: '00000000-0000-0000-0000-000000000001', branch_id: cwk.id }),
+    body: JSON.stringify({ user_id: '00000000-0000-0000-0000-000000000001', branch_id: home.id }),
   })
   assert.ok(impersonate.status >= 400, `punching as another user is refused (got ${impersonate.status})`)
   console.log(`PASS  cannot insert a punch for another user (${impersonate.status})`)
@@ -176,7 +180,7 @@ try {
 
   // --- RLS: cannot see other branches' staff or another branch's data ---
   const others = await j(
-    await fetch(`${URL_BASE}/rest/v1/profiles?select=id&branch_id=eq.${csf.id}`, { headers: auth })
+    await fetch(`${URL_BASE}/rest/v1/profiles?select=id&branch_id=eq.${other.id}`, { headers: auth })
   )
   assert.equal(others.length, 0, 'staff cannot list another branch profiles')
   console.log('PASS  staff cannot read another branch staff list')

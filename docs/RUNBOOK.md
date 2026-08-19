@@ -20,7 +20,7 @@ If `/admin/users` itself is unreachable (e.g. the only admin account got deactiv
 
 Checklist:
 1. Is their account active? (`/admin/users` → their row.)
-2. Do they already have an open punch somewhere (a forgotten clock-in from yesterday)? The DB enforces one open punch per user — check `punches` for a row with `clock_out_at is null` for that user, and either have them clock out normally or, if it's a genuine stuck/erroneous row, close it manually in the Table Editor (`update punches set clock_out_at = now() where id = '<id>'`). There's no in-app punch-correction tool yet (Phase 2b, see `01-PRD.md`).
+2. Do they already have an open punch somewhere (a forgotten clock-in from yesterday)? The DB enforces one open punch per user — check `punches` for a row with `clock_out_at is null` for that user, and either have them clock out normally or, if it's a genuine stuck/erroneous row, close it manually in the Table Editor (`update punches set clock_out_at = now() where id = '<id>'`). Since Phase 2 there **is** an in-app tool: the user opens that day on their calendar (`/calendar/YYYY-MM-DD`) and requests a correction, which their manager approves at `/attendance/corrections`. Prefer that over hand-editing — it leaves an audit trail; the Table Editor does not.
 3. Confirm they're on the right role — `staff` needs `punch.view.own` at `own` or better; if that's been edited down via the permissions matrix, they'll be blocked from *viewing* their punches even though clocking in itself isn't gated by that permission (see [`DECISIONS.md`](./DECISIONS.md) on why punch insert/update check `is_active_user()` directly instead).
 
 ## A leave approval isn't showing up for a manager
@@ -38,6 +38,29 @@ Checklist:
 No automated backup/restore tooling exists beyond whatever your Supabase plan provides (Supabase's own point-in-time recovery on paid tiers, or manual `pg_dump` you set up yourself). Before any destructive change (a manual `UPDATE`/`DELETE` in the Table Editor, a new migration), export the affected table first: Supabase Table Editor → table → Export as CSV.
 
 To roll back a bad migration: there's no down-migration tooling set up — `supabase/migrations/` is append-only today. Fixing a mistake means writing a new corrective migration, not editing or reverting the original file, once it's been applied to a real project.
+
+## Applying a migration
+
+`supabase/migrations/` is append-only and applied in filename order. With the
+CLI linked to the project:
+
+```
+npx supabase db push
+```
+
+Applied versions are tracked in `supabase_migrations.schema_migrations`. Note
+that `20260819000002` exists purely to add `app_permission` enum values, because
+Postgres will not let a new enum value be *used* in the same transaction that
+adds it — keep enum additions in their own file.
+
+After any migration touching RLS, RPCs or the permission matrix, run:
+
+```
+npm run verify:live
+```
+
+It creates a throwaway user, walks signup → clock in → clock out, probes the RLS
+boundaries, and deletes the user in a `finally` block. Safe against production.
 
 ## Escalation
 
