@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { ROLE_META, type Role } from '@/lib/rbac-catalog'
 import SignOutButton from './SignOutButton'
@@ -24,12 +25,14 @@ export default function UserMenu({
   if (compact) {
     return (
       <div className="flex items-center gap-1.5">
-        <div
+        <Link
+          href="/me"
           title={`${fullName} — ${branchName}`}
+          aria-label="Your profile"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-ink to-primary text-xs font-semibold text-brand-gold"
         >
           {initials}
-        </div>
+        </Link>
         <SignOutButton fullName={fullName} />
       </div>
     )
@@ -41,7 +44,9 @@ export default function UserMenu({
         {initials}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-foreground">{fullName}</p>
+        <Link href="/me" className="block truncate text-sm font-medium text-foreground hover:underline">
+          {fullName}
+        </Link>
         <div className="flex items-center gap-1.5">
           <span className="truncate text-xs text-muted-foreground">{branchName}</span>
           <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">

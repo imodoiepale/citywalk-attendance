@@ -36,3 +36,9 @@ export function nairobiMonthRangeUtc(year: number, month: number): { start: Date
     end: new Date(Date.UTC(year, month, 1) - NAIROBI_OFFSET_MS),
   }
 }
+
+/** UTC instants bounding a single Nairobi calendar day, given a "YYYY-MM-DD" key. */
+export function nairobiDayRangeUtc(dateKey: string): { start: Date; end: Date } {
+  const start = new Date(`${dateKey}T00:00:00.000Z`).getTime() - NAIROBI_OFFSET_MS
+  return { start: new Date(start), end: new Date(start + 24 * 60 * 60 * 1000) }
+}

@@ -1,6 +1,11 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { nairobiMonthRangeUtc, startOfNairobiDayUtc, toNairobiDateKey } from '@/lib/timezone'
+import {
+  nairobiDayRangeUtc,
+  nairobiMonthRangeUtc,
+  startOfNairobiDayUtc,
+  toNairobiDateKey,
+} from '@/lib/timezone'
 
 export interface PunchRecord {
   id: string
@@ -107,4 +112,20 @@ export async function getWeeklyHours(userId: string): Promise<number> {
     totalHours += Math.max(0, (endMs - new Date(row.clock_in_at).getTime()) / 3_600_000)
   }
   return totalHours
+}
+
+/** Every punch that began on one Nairobi calendar day, for the day-detail view. */
+export async function getPunchesForDay(userId: string, dateKey: string): Promise<PunchRecord[]> {
+  const supabase = await createClient()
+  const { start, end } = nairobiDayRangeUtc(dateKey)
+
+  const { data } = await supabase
+    .from('punches')
+    .select('id, clock_in_at, clock_out_at')
+    .eq('user_id', userId)
+    .gte('clock_in_at', start.toISOString())
+    .lt('clock_in_at', end.toISOString())
+    .order('clock_in_at', { ascending: true })
+
+  return (data ?? []).map(toPunchRecord)
 }

@@ -16,6 +16,10 @@ export type Permission =
   | 'report.view.org'
   | 'admin.users'
   | 'admin.permissions'
+  | 'attendance.correct.branch'
+  | 'attendance.correct.org'
+  | 'admin.branches'
+  | 'admin.settings'
 
 export type AccessLevel = 'none' | 'own' | 'branch' | 'org' | 'full'
 
@@ -53,6 +57,10 @@ export const PERMISSIONS: Permission[] = [
   'report.view.org',
   'admin.users',
   'admin.permissions',
+  'attendance.correct.branch',
+  'attendance.correct.org',
+  'admin.branches',
+  'admin.settings',
 ]
 
 export const PERMISSION_META: Record<Permission, { label: string; group: string }> = {
@@ -66,6 +74,10 @@ export const PERMISSION_META: Record<Permission, { label: string; group: string 
   'report.view.org': { label: 'View reports — any branch', group: 'Reports' },
   'admin.users': { label: 'Manage user roles & activation', group: 'Admin' },
   'admin.permissions': { label: 'Edit the role/permission matrix', group: 'Admin' },
+  'attendance.correct.branch': { label: 'Correct punches — own branch', group: 'Attendance' },
+  'attendance.correct.org': { label: 'Correct punches — any branch', group: 'Attendance' },
+  'admin.branches': { label: 'Manage branches', group: 'Admin' },
+  'admin.settings': { label: 'Edit org settings', group: 'Admin' },
 }
 
 function rank(level: AccessLevel): number {
@@ -104,19 +116,27 @@ export const NAV: NavItem[] = [
   {
     href: '/reports',
     label: 'Reports',
-    priority: 5,
+    priority: 6,
     match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
+  },
+  {
+    href: '/attendance/corrections',
+    label: 'Corrections',
+    priority: 5,
+    match: (p, r) =>
+      canAtLeast(p, r, 'attendance.correct.branch', 'branch') ||
+      canAtLeast(p, r, 'attendance.correct.org', 'org'),
   },
   {
     href: '/reports/timesheets',
     label: 'Timesheets',
-    priority: 6,
+    priority: 7,
     match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
   },
   {
     href: '/admin/users',
     label: 'Admin',
-    priority: 7,
+    priority: 8,
     match: (p, r) => canAtLeast(p, r, 'admin.users', 'full'),
   },
 ]

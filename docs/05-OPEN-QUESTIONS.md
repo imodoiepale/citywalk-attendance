@@ -28,11 +28,11 @@ Numbered questions for the product owner, grouped by topic, each with the defaul
 
 ## D. Hours & targets
 
-**Q7.** Is the 40-hour weekly target on the calendar's progress ring (`WEEKLY_TARGET_HOURS` in `components/calendar/WeeklyProgressRing.tsx`) uniform across all branches and staff, or should it vary (e.g. part-time contracts)?
-*Default in force:* a single hardcoded constant, same for everyone.
+**Q7.** Is the 40-hour weekly target uniform across all branches and staff, or should it vary (e.g. part-time contracts)?
+*Partly resolved 2026-08-19:* the target is no longer hardcoded — it lives in `app_settings` and is editable at `/admin/settings`. It is still **one org-wide value**; per-branch or per-contract targets would need a `branch_id` column on `app_settings` (or a per-profile override) and are not modelled.
 
-**Q8.** Should there be a maximum shift length the system warns about or blocks (beyond the visual "overtime" colour on the dial, which is purely informational today)?
-*Default in force:* no hard limit — the dial turns red past 8h but never blocks a clock-out or a further clock-in.
+**Q8.** Should there be a maximum shift length the system warns about or blocks?
+*Partly resolved 2026-08-19:* `app_settings.max_shift_hours` exists (default 16h) and is editable, intended for flagging likely forgotten clock-outs. It is **stored but not yet enforced or surfaced** — nothing blocks a long shift. Wiring it into a "review these shifts" flag on the corrections queue is the obvious next step.
 
 ## E. Reporting
 

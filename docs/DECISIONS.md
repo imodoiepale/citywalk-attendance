@@ -87,3 +87,46 @@ worse trade. Revisit when exceljs ships a uuid bump.
 Branch devices are shared kiosks and the sign-out control sits in the persistent
 nav, one mis-tap from the clock-out button. An accidental sign-out mid-shift
 costs a re-login and erodes trust in the punch record. `ConfirmDialog` gates it.
+
+## 2026-08-19 — Punch corrections are proposals, never direct edits
+
+A forgotten clock-out was unfixable in-app, which quietly corrupts every
+downstream payroll number. The fix could have been "let a manager edit the
+punch". It isn't, because an attendance record that can be silently rewritten
+is not evidence of anything.
+
+Instead `punch_corrections` holds a *proposal*: the punch keeps its original
+values until an approver acts, the original times are snapshotted onto the
+correction row, and `decide_punch_correction()` is the only code path in the
+system that may change a punch's times. An approver cannot decide a correction
+they filed themselves unless they are an admin. A partial unique index allows
+at most one pending correction per punch, so two approvers cannot each approve
+a different proposal for the same shift.
+
+`punch_id` is nullable: null means "there is no punch, I never clocked in",
+and approving inserts one. Same queue, same audit trail, no second workflow.
+
+## 2026-08-19 — Hour targets moved to the database
+
+`DAILY_TARGET_HOURS` / `WEEKLY_TARGET_HOURS` and the 7h "approaching" threshold
+were compiled-in constants spread across TimeDial, WeeklyProgressRing and
+calendar-buckets. They now live in a singleton `app_settings` row, read through
+`lib/settings.ts` (request-cached like `getCurrentUser`).
+
+`lib/targets.ts` survives as the *fallback*, not the source of truth:
+`getSettings()` returns it when the settings row cannot be read, so the app
+still renders correctly against a database where migration ...0003 has not been
+applied yet, rather than 500-ing. Client components take the targets as props
+with those same constants as defaults.
+
+Deliberately org-wide, not per-branch — see open question Q7. Per-contract
+part-time targets would need a per-profile override and are not modelled.
+
+## 2026-08-19 — admin.branches and admin.settings default to nobody
+
+Both are seeded at `none` for every role except admin. Editing a branch or an
+hour target retroactively changes what every historical report means, so they
+stay with admin until someone deliberately delegates them through
+/admin/permissions. `admin_update_profile` likewise cannot touch `role` or
+`is_active` — those keep their own RPCs so each privileged capability stays
+separately grantable and separately auditable.

@@ -2,7 +2,10 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { getDailyHoursForMonth, getWeeklyHours } from '@/lib/punches/queries'
+import { getApprovedLeaveDayKeys } from '@/lib/leave/queries'
+import { nairobiMonthRangeUtc } from '@/lib/timezone'
 import { toNairobiDateKey } from '@/lib/timezone'
+import { getSettings } from '@/lib/settings'
 import MonthCalendar from '@/components/calendar/MonthCalendar'
 import WeeklyProgressRing from '@/components/calendar/WeeklyProgressRing'
 import Legend from '@/components/calendar/Legend'
@@ -19,9 +22,12 @@ export default async function CalendarPage({
   const year = params.year ? parseInt(params.year, 10) : now.getUTCFullYear()
   const month = params.month ? parseInt(params.month, 10) : now.getUTCMonth() + 1
 
-  const [hoursByDay, weeklyHours] = await Promise.all([
+  const monthRange = nairobiMonthRangeUtc(year, month)
+  const [settings, hoursByDay, weeklyHours, leaveDayKeys] = await Promise.all([
+    getSettings(),
     getDailyHoursForMonth(user.id, year, month),
     getWeeklyHours(user.id),
+    getApprovedLeaveDayKeys(user.id, monthRange.start.toISOString(), monthRange.end.toISOString()),
   ])
 
   const monthLabel = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-KE', {
@@ -39,10 +45,10 @@ export default async function CalendarPage({
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
       <div>
         <h1 className="text-xl font-bold text-foreground">Calendar</h1>
-        <p className="text-sm text-muted-foreground">Your worked hours, day by day.</p>
+        <p className="text-sm text-muted-foreground">Your worked hours, day by day. Tap a day for detail.</p>
       </div>
 
-      <WeeklyProgressRing hoursThisWeek={weeklyHours} />
+      <WeeklyProgressRing hoursThisWeek={weeklyHours} targetHours={settings.weeklyTargetHours} />
 
       <div className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
         <div className="mb-4 flex items-center justify-between">
@@ -75,10 +81,12 @@ export default async function CalendarPage({
           month={month}
           hoursByDay={hoursByDay}
           todayKey={toNairobiDateKey(new Date().toISOString())}
+          dailyTargetHours={settings.dailyTargetHours}
+          leaveDayKeys={leaveDayKeys}
         />
 
         <div className="mt-4">
-          <Legend />
+          <Legend dailyTargetHours={settings.dailyTargetHours} />
         </div>
       </div>
     </div>

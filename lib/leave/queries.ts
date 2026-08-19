@@ -134,3 +134,53 @@ export async function countApprovalQueue(branchId: string, orgWide: boolean): Pr
   const { count } = await query
   return count ?? 0
 }
+
+/**
+ * Nairobi date keys covered by the user's approved leave in a month.
+ * Ranges are stored as start/end dates, so they're expanded here into the
+ * individual days the calendar needs to mark.
+ */
+export async function getApprovedLeaveDayKeys(
+  userId: string,
+  monthStartIso: string,
+  monthEndIso: string
+): Promise<Set<string>> {
+  const supabase = await createClient()
+  const monthStart = monthStartIso.slice(0, 10)
+  const monthEnd = monthEndIso.slice(0, 10)
+
+  const { data } = await supabase
+    .from('leave_requests')
+    .select('start_date, end_date')
+    .eq('requester_id', userId)
+    .eq('status', 'approved')
+    // Any request that overlaps the month at all.
+    .lte('start_date', monthEnd)
+    .gte('end_date', monthStart)
+
+  const keys = new Set<string>()
+  for (const row of data ?? []) {
+    const cursor = new Date(`${row.start_date}T00:00:00Z`)
+    const end = new Date(`${row.end_date}T00:00:00Z`)
+    while (cursor <= end) {
+      keys.add(cursor.toISOString().slice(0, 10))
+      cursor.setUTCDate(cursor.getUTCDate() + 1)
+    }
+  }
+  return keys
+}
+
+/** Approved leave covering one specific Nairobi day, for the day-detail view. */
+export async function getLeaveOnDay(userId: string, dateKey: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('leave_requests')
+    .select('id, type, start_date, end_date, reason, status')
+    .eq('requester_id', userId)
+    .eq('status', 'approved')
+    .lte('start_date', dateKey)
+    .gte('end_date', dateKey)
+    .maybeSingle()
+
+  return data ?? null
+}

@@ -2,10 +2,16 @@
 // ring, scaled down for a "this week vs target" hero stat.
 import { WEEKLY_TARGET_HOURS } from '@/lib/targets'
 
-export default function WeeklyProgressRing({ hoursThisWeek }: { hoursThisWeek: number }) {
+export default function WeeklyProgressRing({
+  hoursThisWeek,
+  targetHours = WEEKLY_TARGET_HOURS,
+}: {
+  hoursThisWeek: number
+  targetHours?: number
+}) {
   const radius = 54
   const circumference = 2 * Math.PI * radius
-  const progress = Math.min(hoursThisWeek / WEEKLY_TARGET_HOURS, 1)
+  const progress = Math.min(hoursThisWeek / Math.max(1, targetHours), 1)
   const offset = circumference * (1 - progress)
 
   return (
@@ -35,7 +41,7 @@ export default function WeeklyProgressRing({ hoursThisWeek }: { hoursThisWeek: n
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className="text-2xl font-bold text-foreground">{hoursThisWeek.toFixed(1)}h</span>
-        <span className="text-xs text-muted-foreground">of {WEEKLY_TARGET_HOURS}h this week</span>
+        <span className="text-xs text-muted-foreground">of {targetHours}h this week</span>
       </div>
     </div>
   )

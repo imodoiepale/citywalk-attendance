@@ -15,6 +15,10 @@ on conflict (code) do nothing;
 -- ============================================================
 -- 2. ROLE PERMISSIONS MATRIX
 -- ============================================================
+-- Note: admin.branches and admin.settings are deliberately left ungranted for
+-- every role except admin. Branch and target changes rewrite what every report
+-- means, so they stay with admin until someone explicitly delegates them via
+-- /admin/permissions.
 
 -- staff: manage their own punches and leave only.
 insert into role_permissions (role, permission, access_level) values
@@ -31,7 +35,8 @@ insert into role_permissions (role, permission, access_level) values
   ('branch_manager', 'leave.cancel.own',      'own'),
   ('branch_manager', 'leave.request.on_behalf','branch'),
   ('branch_manager', 'leave.approve.branch',  'branch'),
-  ('branch_manager', 'report.view.branch',    'branch')
+  ('branch_manager', 'report.view.branch',    'branch'),
+  ('branch_manager', 'attendance.correct.branch', 'branch')
 on conflict (role, permission) do update set access_level = excluded.access_level;
 
 -- hr_accounts: the same rights as a branch manager, but organisation-wide.
@@ -41,7 +46,8 @@ insert into role_permissions (role, permission, access_level) values
   ('hr_accounts', 'leave.cancel.own',       'own'),
   ('hr_accounts', 'leave.request.on_behalf','org'),
   ('hr_accounts', 'leave.approve.org',      'org'),
-  ('hr_accounts', 'report.view.org',        'org')
+  ('hr_accounts', 'report.view.org',        'org'),
+  ('hr_accounts', 'attendance.correct.org', 'org')
 on conflict (role, permission) do update set access_level = excluded.access_level;
 
 -- admin: full on everything. has_min_access() already hardcodes this

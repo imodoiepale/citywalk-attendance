@@ -46,9 +46,9 @@ Tracked here and in [`05-OPEN-QUESTIONS.md`](./05-OPEN-QUESTIONS.md). The in-app
 - Geofenced / location-verified punches (branch-radius check).
 - Biometric verification (face or fingerprint) to prevent buddy-punching, via a vendor-agnostic adapter layer supporting both device-push (webhook) and pull (scheduled sync) ingest.
 - Offline-first punching with background sync once connectivity returns.
-- **Punch correction & approval** — a manager reviewing/editing a missed or wrong punch. (Distinct from leave approval, which is live: this is about fixing *punches*, not leave.)
 - A payroll-system-specific export format (the generic Excel/PDF/CSV timesheet export is live; feeding the eventual Payroll module referenced in the Citywalk Portal Hub is still to come).
 - Shift scheduling & rota, with actual-vs-scheduled comparison.
+- Inviting a user directly (today the only way in is self-signup; an admin can then edit and reassign them).
 - Push notifications/reminders for forgotten punches.
 - **AI Assistant** — anomaly detection, natural-language timesheet queries, smart shift suggestions. Not implemented, not wired to any model.
 
@@ -72,8 +72,12 @@ Tracked here and in [`05-OPEN-QUESTIONS.md`](./05-OPEN-QUESTIONS.md). The in-app
 | FR13 | An Admin can edit what each role is allowed to do, per permission, without a code change. | 2a |
 | FR18 | A timesheet screen shows an employee x day hours grid for a pay period, sortable/searchable, with per-day, overtime and total columns. | 2a |
 | FR19 | Signing out asks for confirmation — branch devices are shared, and an accidental sign-out mid-shift is a real cost. | 2a |
+| FR20 | Hour targets, the overtime threshold and the grace period are editable by an admin without a deploy. | 2a |
+| FR21 | Staff can see their own punches for any single day, and request a correction to a wrong or missing punch. | 2a |
+| FR22 | An admin can create and edit branches, including coordinates for future geofencing. | 2a |
+| FR23 | Staff can see what data the system records about them. | 2a |
 | FR14 | A punch is rejected (or flagged) if the device is outside the branch geofence. | 2b |
-| FR15 | A manager can view, correct, and approve/reject a flagged or missed punch. | 2b |
+| FR15 | A manager can view, correct, and approve/reject a flagged or missed punch. | **2a (done)** |
 | FR16 | Approved hours can be exported for a payroll run, per branch and pay period, as styled Excel, print-ready PDF, or raw CSV — arranged branch-wise or name-wise, one branch or all at once. | **2a (done)** |
 | FR17 | The system detects anomalous patterns (e.g. identical in/out times across staff, punches with no matching schedule) and flags them for review. | 3 (AI) |
 

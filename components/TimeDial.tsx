@@ -26,6 +26,9 @@ function formatElapsed(totalSeconds: number) {
 
 interface TimeDialProps {
   isClockedIn: boolean
+  /** Org daily target in seconds — the ring's full sweep. */
+  targetSeconds?: number
+  approachingSeconds?: number
   /** Worked seconds across every punch today — what the ring and the caption track. */
   todaySeconds: number
   /** Seconds on the currently open punch only. */
@@ -38,19 +41,21 @@ export default function TimeDial({
   todaySeconds,
   sessionSeconds,
   nowSeconds,
+  targetSeconds = DAILY_TARGET_SECONDS,
+  approachingSeconds = APPROACHING_THRESHOLD_SECONDS,
 }: TimeDialProps) {
   const radius = 148
   const circumference = 2 * Math.PI * radius
   // The ring fills toward a full day, not a single punch, so it keeps its
   // position across a lunch break instead of snapping back to empty.
-  const progress = Math.min(todaySeconds / DAILY_TARGET_SECONDS, 1)
+  const progress = Math.min(todaySeconds / Math.max(1, targetSeconds), 1)
   const offset = circumference * (1 - progress)
 
   const state = !isClockedIn
     ? 'idle'
-    : todaySeconds >= DAILY_TARGET_SECONDS
+    : todaySeconds >= targetSeconds
       ? 'overtime'
-      : todaySeconds >= APPROACHING_THRESHOLD_SECONDS
+      : todaySeconds >= approachingSeconds
         ? 'approaching'
         : 'normal'
 

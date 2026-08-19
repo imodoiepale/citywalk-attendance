@@ -20,9 +20,13 @@ function applyOptimisticUpdate(state: PunchRecord[], action: OptimisticAction): 
 export default function DashboardClient({
   punches,
   summary,
+  targetSeconds,
+  approachingSeconds,
 }: {
   punches: PunchRecord[]
   summary: DashboardSummary
+  targetSeconds: number
+  approachingSeconds: number
 }) {
   const [isPending, startTransition] = useTransition()
   const [optimisticPunches, applyOptimistic] = useOptimistic(punches, applyOptimisticUpdate)
@@ -52,6 +56,8 @@ export default function DashboardClient({
         todaySeconds={todaySeconds}
         sessionSeconds={sessionSeconds}
         nowSeconds={nowSeconds}
+        targetSeconds={targetSeconds}
+        approachingSeconds={approachingSeconds}
       />
       <ClockInOutCard
         isClockedIn={isClockedIn}

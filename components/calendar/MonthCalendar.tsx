@@ -5,11 +5,21 @@ interface MonthCalendarProps {
   month: number // 1-12
   hoursByDay: Map<string, number> // "YYYY-MM-DD" -> hours
   todayKey: string
+  dailyTargetHours: number
+  /** Nairobi date keys the user has approved leave on. */
+  leaveDayKeys?: Set<string>
 }
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export default function MonthCalendar({ year, month, hoursByDay, todayKey }: MonthCalendarProps) {
+export default function MonthCalendar({
+  year,
+  month,
+  hoursByDay,
+  todayKey,
+  dailyTargetHours,
+  leaveDayKeys,
+}: MonthCalendarProps) {
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1))
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
   const firstWeekday = firstOfMonth.getUTCDay() // 0 = Sunday
@@ -40,8 +50,11 @@ export default function MonthCalendar({ year, month, hoursByDay, todayKey }: Mon
               <DayCell
                 key={j}
                 day={day}
+                dateKey={dateKey}
                 hours={dateKey ? (hoursByDay.get(dateKey) ?? 0) : 0}
                 isToday={dateKey === todayKey}
+                dailyTargetHours={dailyTargetHours}
+                onLeave={dateKey ? (leaveDayKeys?.has(dateKey) ?? false) : false}
               />
             )
           })}

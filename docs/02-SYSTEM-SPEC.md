@@ -39,7 +39,10 @@ lib/
   reports/export/         shape.ts (shared flattening) + csv.ts / xlsx.ts (exceljs) / pdf.ts (pdf-lib)
   admin/                queries.ts, actions.ts
   timezone.ts            Africa/Nairobi (fixed UTC+3) date arithmetic
-  targets.ts             daily/weekly hour targets and dial thresholds, in one place
+  targets.ts             compiled-in fallbacks for hour targets
+  settings.ts            reads app_settings (the real source of truth); falls back
+                         to targets.ts if the row/table isn't there yet
+  corrections/           queries.ts, actions.ts
   calendar-buckets.ts     hours -> colour bucket for the calendar heatmap
   useShiftClock.ts        shared client 1s tick; accumulates the day's punches for the dial
 supabase/
@@ -59,6 +62,13 @@ punches            id, user_id, branch_id, clock_in_at, clock_out_at, method
 leave_requests     id, requester_id, filed_by_id, branch_id, type, start_date, end_date,
                    reason, status, decided_by_id, decided_at, decision_note
 role_permissions   role, permission, access_level   -- see 04-RBAC-AND-PERMISSIONS.md
+app_settings       singleton row: daily/weekly hour targets, approaching threshold,
+                   grace period, max shift. Replaces the old hardcoded constants.
+punch_corrections  proposed fixes to a punch (or a punch that was never recorded).
+                   punch_id null = "missing punch". Applied only by
+                   decide_punch_correction(); originals are snapshotted for audit.
+branches           + latitude, longitude, geofence_radius_m (nullable, unused until
+                   geofencing ships — added early so that's not a migration later)
 ```
 
 Design choices worth noting:
@@ -77,6 +87,8 @@ Declared in the migration, section 3–4:
 | `has_min_access(permission, min_level)` | The single authorization check. Returns `false` immediately if the caller is deactivated; `true` unconditionally for `admin`; otherwise looks up `role_permissions`. Every RLS policy and every privileged RPC calls through this one function. |
 | `my_permissions()` | Lets a signed-in user read their own role's permission set (used by `getCurrentUser()`) without loosening RLS on `role_permissions` itself. |
 | `admin_set_role`, `admin_set_active`, `admin_set_permission`, `decide_leave_request`, `cancel_leave_request` | Privileged writes. Each checks `has_min_access()` internally, so RLS policies on the underlying tables can stay simple "self row only" rules. |
+| `request_punch_correction`, `decide_punch_correction`, `cancel_punch_correction` | The only paths that may change a punch's times. Approving rewrites (or creates) the punch; the correction row keeps who/what/why. An approver cannot decide a correction they filed themselves unless they're an admin. |
+| `admin_update_profile`, `admin_upsert_branch`, `admin_update_settings` | Profile/branch/settings edits. `admin_update_profile` deliberately cannot touch `role` or `is_active` — those keep their own RPCs so each capability stays separately grantable. |
 
 ## Row Level Security
 
@@ -106,6 +118,12 @@ Hiding UI is **not** the security boundary — RLS is. `requireUser()`/`requireP
 | `/leave/approvals` | `leave.approve.branch` or `leave.approve.org` |
 | `/reports` | `report.view.branch` or `report.view.org` |
 | `/reports/timesheets` | `report.view.branch` (own branch, pinned) or `report.view.org` (any/all branches) |
+| `/calendar/[date]` | Any active user — own punches for one day, and where corrections are filed |
+| `/me` | Any active user — own profile, plus what the system records about them |
+| `/attendance/corrections` | `attendance.correct.branch` or `attendance.correct.org` |
+| `/admin/users/[id]` | `admin.users` |
+| `/admin/branches` | `admin.branches` |
+| `/admin/settings` | `admin.settings` |
 | `/api/reports/timesheet` | Same as above. `?branch=` is ignored for branch-scoped users — they are pinned to their own branch server-side, and RLS enforces it independently. |
 | `/admin/users` | `admin.users` |
 | `/admin/permissions` | `admin.permissions` |

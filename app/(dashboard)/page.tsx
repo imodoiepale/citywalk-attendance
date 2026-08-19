@@ -4,7 +4,8 @@ import { canAtLeast } from '@/lib/rbac-catalog'
 import { getTodaysPunches, getWeeklyHours } from '@/lib/punches/queries'
 import { countApprovalQueue, countMyPendingLeave } from '@/lib/leave/queries'
 import DashboardClient from '@/components/DashboardClient'
-import { WEEKLY_TARGET_HOURS } from '@/lib/targets'
+import { hoursToSeconds } from '@/lib/targets'
+import { getSettings } from '@/lib/settings'
 
 // requirePermission() bounces unauthorized users here with ?error=forbidden.
 // Without reading it back out, that redirect lands silently on the dashboard
@@ -25,7 +26,8 @@ export default async function DashboardPage({
   const canApproveOrg = canAtLeast(user.permissions, user.role, 'leave.approve.org', 'org')
   const canApproveBranch = canAtLeast(user.permissions, user.role, 'leave.approve.branch', 'branch')
 
-  const [punches, weekHours, pendingLeaveCount, awaitingApprovalCount] = await Promise.all([
+  const [settings, punches, weekHours, pendingLeaveCount, awaitingApprovalCount] = await Promise.all([
+    getSettings(),
     getTodaysPunches(user.id),
     getWeeklyHours(user.id),
     countMyPendingLeave(user.id),
@@ -54,10 +56,12 @@ export default async function DashboardPage({
         punches={punches}
         summary={{
           weekHours,
-          weekTargetHours: WEEKLY_TARGET_HOURS,
+          weekTargetHours: settings.weeklyTargetHours,
           pendingLeaveCount,
           awaitingApprovalCount,
         }}
+        targetSeconds={hoursToSeconds(settings.dailyTargetHours)}
+        approachingSeconds={hoursToSeconds(settings.approachingThresholdHours)}
       />
     </div>
   )
