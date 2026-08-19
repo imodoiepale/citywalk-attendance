@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify:live": "node scripts/verify-live.mjs .env.local"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

@@ -23,20 +23,19 @@ export async function clockInAction() {
 }
 
 export async function clockOutAction() {
-  const user = await requireUser()
+  await requireUser()
   const supabase = await createClient()
 
-  // .select() so we can tell "closed a shift" from "matched nothing" — without
-  // it a clock-out with no open punch reports success and the UI silently lies.
-  const { data, error } = await supabase
-    .from('punches')
-    .update({ clock_out_at: new Date().toISOString() })
-    .eq('user_id', user.id)
-    .is('clock_out_at', null)
-    .select('id')
+  // Via RPC rather than a direct update so the close timestamp comes from the
+  // database clock, the same source as clock_in_at's default. Sending a time
+  // from this Node process compared the two against each other across the
+  // punches_out_after_in constraint, and any skew rejected the clock-out.
+  const { data, error } = await supabase.rpc('clock_out')
 
   if (error) throw new Error(error.message)
-  if (!data || data.length === 0) throw new Error('You have no open shift.')
+  // A null row means nothing was open — an ordinary mis-tap, not a failure,
+  // so the RPC returns rather than raising and we phrase it here.
+  if (!data?.id) throw new Error('You have no open shift.')
 
   revalidatePath('/')
   revalidatePath('/calendar')
