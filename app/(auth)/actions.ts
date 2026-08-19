@@ -96,8 +96,10 @@ export async function requestPasswordResetAction(formData: FormData) {
 
   const supabase = await createClient()
   const origin = String(formData.get('origin') ?? '')
+  // Supabase appends token_hash/type to this URL; /callback verifies it
+  // server-side via verifyOtp.
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/callback?type=recovery`,
+    redirectTo: `${origin}/callback`,
   })
 
   // Always report the same thing, sent or not: telling an anonymous visitor
