@@ -39,19 +39,19 @@ export default function ClockInOutCard({
   isPending,
 }: ClockInOutCardProps) {
   return (
-    <div className="mx-auto w-full max-w-md space-y-4">
-      <div className="flex flex-col items-center gap-3">
+    <div className="mx-auto w-full max-w-md space-y-3">
+      <div className="flex flex-col items-center gap-1.5">
         <Button
           size="lg"
           variant={isClockedIn ? 'destructive' : 'default'}
-          className="h-14 w-full rounded-full text-base font-semibold shadow-card"
+          className="h-12 w-full rounded-full text-base font-semibold shadow-card"
           onClick={isClockedIn ? onClockOut : onClockIn}
           disabled={isPending}
         >
           {isClockedIn ? <LogOut className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
           {isClockedIn ? 'Clock Out' : 'Clock In'}
         </Button>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {isClockedIn && activePunch
             ? `Clocked in since ${formatTime(activePunch.clockInAt)}`
             : 'Tap Clock In to start today’s shift'}
@@ -59,19 +59,19 @@ export default function ClockInOutCard({
       </div>
 
       <Card>
-        <CardContent className="p-4 md:p-5">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+        <CardContent className="p-3 md:p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Timer className="h-4 w-4 text-primary-strong" />
             Today&rsquo;s punch log
           </div>
           {todaysPunches.length === 0 ? (
             <p className="text-sm text-muted-foreground">No punches recorded yet today.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {todaysPunches.map((punch) => (
                 <li
                   key={punch.id}
-                  className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-1.5 text-sm"
                 >
                   <span className="font-medium">
                     {formatTime(punch.clockInAt)}

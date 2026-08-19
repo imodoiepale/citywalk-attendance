@@ -1,6 +1,6 @@
 // Same stroke-dasharray/-rotate-90 technique as TimeDial.tsx's progress
 // ring, scaled down for a "this week vs target" hero stat.
-const WEEKLY_TARGET_HOURS = 40
+import { WEEKLY_TARGET_HOURS } from '@/lib/targets'
 
 export default function WeeklyProgressRing({ hoursThisWeek }: { hoursThisWeek: number }) {
   const radius = 54

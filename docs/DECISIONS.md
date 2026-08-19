@@ -58,3 +58,32 @@ Considered a client component with its own month-state + `useEffect` fetch, matc
 
 - The reporting date-range UI only exposes a `?days=N` query param today, no date picker — fine for MVP, revisit once Q9 ([`05-OPEN-QUESTIONS.md`](./05-OPEN-QUESTIONS.md)) is answered.
 - No automated tests exist yet — acceptable at current scale, but the RLS policies in particular deserve a regression suite before this handles real payroll-adjacent data at volume.
+
+## 2026-08-19 — Timesheet exports use TanStack Table v9 + exceljs + pdf-lib
+
+The design spec's "no libraries, hand-roll it" rule was kept for the dial and the
+calendar but relaxed for HR's timesheet grid. Hand-rolling sorting, filtering,
+pagination and column visibility across a 30-column employee x day table is a
+real state machine, and it is not the part of this product worth owning.
+
+- `@tanstack/react-table` v9 for row models only. Markup stays ours
+  (`components/ui/table.tsx`, shadcn's Table set hand-rolled). No Radix.
+- `exceljs` for `.xlsx` — borders, auto-fit widths, frozen header, autofilter,
+  branch group rows, bold totals. CSV cannot express any of that.
+- `pdf-lib` for PDF rather than pdfkit or react-pdf: pure JS, no font files or
+  native deps, so it bundles cleanly in a Next Route Handler.
+
+All three formats render from one `buildExportTable()` result, so they cannot
+drift into showing different numbers.
+
+Known: `exceljs@4.4.0` pulls `uuid@<11.1.1`, flagged moderate (GHSA-w5hq-g745-h8pq
+— a bounds check in uuid v3/v5/v6 when a `buf` argument is supplied). exceljs
+uses uuid v4 and passes no buffer, so the vulnerable path is not reachable here.
+`npm audit fix --force` would downgrade to exceljs@3.4.0, a breaking change and a
+worse trade. Revisit when exceljs ships a uuid bump.
+
+## 2026-08-19 — Sign-out asks for confirmation
+
+Branch devices are shared kiosks and the sign-out control sits in the persistent
+nav, one mis-tap from the clock-out button. An accidental sign-out mid-shift
+costs a re-login and erodes trust in the punch record. `ConfirmDialog` gates it.

@@ -4,7 +4,7 @@ Technical architecture: repo layout, data model, RLS, routes, auth flow, and tes
 
 ## Architecture
 
-Next.js 16 (App Router) + TypeScript + Tailwind CSS v4, backed by a single Supabase project (Postgres + Auth + Row Level Security). No separate API layer — Server Components read via the Supabase server client, mutations go through Server Actions calling Supabase directly or via RPC. `@ducanh2912/next-pwa` wraps the build for offline-tolerant installability.
+Next.js 16 (App Router) + TypeScript + Tailwind CSS v4, backed by a single Supabase project (Postgres + Auth + Row Level Security). Server Components read via the Supabase server client and mutations go through Server Actions calling Supabase directly or via RPC. The one Route Handler is `/api/reports/timesheet`, which exists because a file download needs to set `Content-Type`/`Content-Disposition` on a binary body — something a Server Action can't do. `@ducanh2912/next-pwa` wraps the build for offline-tolerant installability.
 
 `dev`/`build` are pinned to `--webpack` (see `package.json`) because Next 16 defaults to Turbopack, and `@ducanh2912/next-pwa`'s service-worker generation depends on the webpack compiler.
 
@@ -19,13 +19,14 @@ app/
   manifest.ts           PWA manifest route
 components/
   ui/                  hand-rolled shadcn-style primitives (button, card, badge, input, select, ...)
-  shell/               AppShell, NavLink, UserMenu — the nav shell
+  shell/               AppShell, NavLink, MobileTabBar, UserMenu — the nav shell
   calendar/            MonthCalendar, DayCell, WeeklyProgressRing, Legend
   leave/               LeaveRequestForm, LeaveRequestList, DecisionButtons
-  reports/             HoursByBranchTable, LeaveSummaryTable
+  reports/             HoursByBranchTable, LeaveSummaryTable, TimesheetTable (TanStack v9), TimesheetToolbar
   admin/               AdminUserTable, PermissionMatrixEditor
-  TimeDial.tsx          the dial (unchanged in spirit since Phase 1)
-  DashboardClient.tsx    owns optimistic punch state, ties dial + clock card + capabilities together
+  TimeDial.tsx          the dial — shows the day's cumulative worked time, not the current punch
+  TodaySummary.tsx       today/week/leave stat strip under the clock card
+  DashboardClient.tsx    owns optimistic punch state, ties dial + clock card + summary together
 lib/
   supabase/            client.ts (browser), server.ts (Server Components/Actions), admin.ts (service role, unused today), session.ts (proxy helper)
   auth.ts               getCurrentUser() / requireUser() / requirePermission()
@@ -33,10 +34,14 @@ lib/
   punches/              queries.ts, actions.ts
   leave/                queries.ts, actions.ts
   reports/analytics.ts
+  reports/timesheets.ts   employee x day grid; the single source of truth for exported numbers
+  reports/periods.ts      pay-period presets (this/last month, 1st-15th, 16th-end, rolling N)
+  reports/export/         shape.ts (shared flattening) + csv.ts / xlsx.ts (exceljs) / pdf.ts (pdf-lib)
   admin/                queries.ts, actions.ts
   timezone.ts            Africa/Nairobi (fixed UTC+3) date arithmetic
+  targets.ts             daily/weekly hour targets and dial thresholds, in one place
   calendar-buckets.ts     hours -> colour bucket for the calendar heatmap
-  useShiftClock.ts        client 1s tick for the live dial
+  useShiftClock.ts        shared client 1s tick; accumulates the day's punches for the dial
 supabase/
   migrations/20260819000001_schema.sql   full schema, RLS, RPCs
   seed.sql                                branches + default role_permissions matrix
@@ -100,6 +105,8 @@ Hiding UI is **not** the security boundary — RLS is. `requireUser()`/`requireP
 | `/leave/new` | Any active user (on-behalf-of picker shown only with `leave.request.on_behalf`) |
 | `/leave/approvals` | `leave.approve.branch` or `leave.approve.org` |
 | `/reports` | `report.view.branch` or `report.view.org` |
+| `/reports/timesheets` | `report.view.branch` (own branch, pinned) or `report.view.org` (any/all branches) |
+| `/api/reports/timesheet` | Same as above. `?branch=` is ignored for branch-scoped users — they are pinned to their own branch server-side, and RLS enforces it independently. |
 | `/admin/users` | `admin.users` |
 | `/admin/permissions` | `admin.permissions` |
 

@@ -1,23 +1,64 @@
+import { AlertTriangle } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
-import { getTodaysPunches } from '@/lib/punches/queries'
+import { canAtLeast } from '@/lib/rbac-catalog'
+import { getTodaysPunches, getWeeklyHours } from '@/lib/punches/queries'
+import { countApprovalQueue, countMyPendingLeave } from '@/lib/leave/queries'
 import DashboardClient from '@/components/DashboardClient'
+import { WEEKLY_TARGET_HOURS } from '@/lib/targets'
 
-export default async function DashboardPage() {
+// requirePermission() bounces unauthorized users here with ?error=forbidden.
+// Without reading it back out, that redirect lands silently on the dashboard
+// and the user is left wondering why the page they clicked never opened.
+const ERROR_MESSAGES: Record<string, string> = {
+  forbidden: "You don't have permission to open that page.",
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
   const user = await requireUser()
-  const punches = await getTodaysPunches(user.id)
+  const params = await searchParams
+  const errorMessage = params.error ? ERROR_MESSAGES[params.error] : undefined
+
+  const canApproveOrg = canAtLeast(user.permissions, user.role, 'leave.approve.org', 'org')
+  const canApproveBranch = canAtLeast(user.permissions, user.role, 'leave.approve.branch', 'branch')
+
+  const [punches, weekHours, pendingLeaveCount, awaitingApprovalCount] = await Promise.all([
+    getTodaysPunches(user.id),
+    getWeeklyHours(user.id),
+    countMyPendingLeave(user.id),
+    canApproveOrg || canApproveBranch
+      ? countApprovalQueue(user.branchId, canApproveOrg)
+      : Promise.resolve(null),
+  ])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 px-4 py-8 sm:py-12">
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+    <div className="mx-auto max-w-4xl space-y-5 px-4 py-4 sm:space-y-8 sm:py-8">
+      {errorMessage ? (
+        <div className="mx-auto flex max-w-md items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+          {errorMessage}
+        </div>
+      ) : null}
+
+      <div className="text-center">
+        <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-2xl">
           Hi {user.fullName.split(' ')[0]}
         </h1>
-        <p className="mx-auto max-w-md text-sm text-muted-foreground sm:text-base">
-          {user.branchName} — punch in, watch the dial fill, punch out.
-        </p>
+        <p className="text-xs text-muted-foreground sm:text-sm">{user.branchName}</p>
       </div>
 
-      <DashboardClient punches={punches} />
+      <DashboardClient
+        punches={punches}
+        summary={{
+          weekHours,
+          weekTargetHours: WEEKLY_TARGET_HOURS,
+          pendingLeaveCount,
+          awaitingApprovalCount,
+        }}
+      />
     </div>
   )
 }

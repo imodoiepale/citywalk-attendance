@@ -37,7 +37,7 @@ Sign up (or promote) one test account per role and confirm, per role, that they 
 
 ## 6. Known gaps — read before treating this as "done"
 
-Everything in [`01-PRD.md`](./01-PRD.md) §3's Phase 2b+ list is genuinely not built: no geofencing, no biometric verification, no offline sync, no punch correction workflow, no payroll export, no scheduling, no notifications, no AI features. The Capabilities grid on the dashboard states this honestly to end users — don't let a demo imply more than what's shipped.
+Everything in [`01-PRD.md`](./01-PRD.md) §3's Phase 2b+ list is genuinely not built: no geofencing, no biometric verification, no offline sync, no punch correction workflow, no payroll export, no scheduling, no notifications, no AI features. The dashboard no longer advertises that roadmap to end users (the Capabilities grid was removed), so nothing in the UI implies these exist — but don't let a demo imply more than what's shipped either.
 
 No automated test suite exists (see [`02-SYSTEM-SPEC.md`](./02-SYSTEM-SPEC.md) "Testing strategy") — step 5 above **is** the acceptance test for this release.
 

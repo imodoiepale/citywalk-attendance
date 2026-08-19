@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { startOfNairobiDayUtc, toNairobiDateKey } from '@/lib/timezone'
+import { nairobiMonthRangeUtc, startOfNairobiDayUtc, toNairobiDateKey } from '@/lib/timezone'
 
 export interface PunchRecord {
   id: string
@@ -8,6 +8,35 @@ export interface PunchRecord {
   clockOutAt: string | null
 }
 
+function toPunchRecord(row: {
+  id: string
+  clock_in_at: string
+  clock_out_at: string | null
+}): PunchRecord {
+  return { id: row.id, clockInAt: row.clock_in_at, clockOutAt: row.clock_out_at }
+}
+
+/**
+ * The user's currently open punch, if any — deliberately unfiltered by date.
+ * A night shift started at 22:00 is still open at 01:00 the next Nairobi day,
+ * and a today-only query would report that person as clocked out.
+ */
+export async function getOpenPunch(userId: string): Promise<PunchRecord | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('punches')
+    .select('id, clock_in_at, clock_out_at')
+    .eq('user_id', userId)
+    .is('clock_out_at', null)
+    .maybeSingle()
+
+  return data ? toPunchRecord(data) : null
+}
+
+/**
+ * Today's punches, plus any still-open punch that began on an earlier day.
+ * The DB's `punches_one_open_per_user` index guarantees at most one of those.
+ */
 export async function getTodaysPunches(userId: string): Promise<PunchRecord[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -17,11 +46,22 @@ export async function getTodaysPunches(userId: string): Promise<PunchRecord[]> {
     .gte('clock_in_at', startOfNairobiDayUtc().toISOString())
     .order('clock_in_at', { ascending: false })
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    clockInAt: row.clock_in_at,
-    clockOutAt: row.clock_out_at,
-  }))
+  const punches = (data ?? []).map(toPunchRecord)
+
+  const openPunch = await getOpenPunch(userId)
+  if (openPunch && !punches.some((p) => p.id === openPunch.id)) {
+    punches.push(openPunch)
+  }
+
+  return punches.sort((a, b) => b.clockInAt.localeCompare(a.clockInAt))
+}
+
+/** Worked seconds across a set of punches; an open punch counts up to now. */
+export function totalWorkedSeconds(punches: PunchRecord[]): number {
+  return punches.reduce((total, punch) => {
+    const endMs = punch.clockOutAt ? new Date(punch.clockOutAt).getTime() : Date.now()
+    return total + Math.max(0, (endMs - new Date(punch.clockInAt).getTime()) / 1000)
+  }, 0)
 }
 
 /** Worked hours per Nairobi calendar day, for a given month (1-12). */
@@ -31,8 +71,7 @@ export async function getDailyHoursForMonth(
   month: number
 ): Promise<Map<string, number>> {
   const supabase = await createClient()
-  const start = new Date(Date.UTC(year, month - 1, 1))
-  const end = new Date(Date.UTC(year, month, 1))
+  const { start, end } = nairobiMonthRangeUtc(year, month)
 
   const { data } = await supabase
     .from('punches')

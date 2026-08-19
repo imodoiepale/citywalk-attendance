@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Clock as ClockIcon } from 'lucide-react'
+import { APPROACHING_THRESHOLD_SECONDS, DAILY_TARGET_SECONDS } from '@/lib/targets'
 import './clock-dial.css'
 
-const SHIFT_TARGET_SECONDS = 8 * 60 * 60
-const APPROACHING_THRESHOLD_SECONDS = 7 * 60 * 60
+const PLACEHOLDER_CLOCK = '--:--:--'
 
-function formatClock(date: Date) {
-  return date.toLocaleTimeString('en-KE', {
+function formatClock(nowSeconds: number) {
+  // 0 means "not hydrated yet" (see useShiftClock's server snapshot) — render
+  // a placeholder rather than a server-side time that won't match the client's.
+  if (nowSeconds === 0) return PLACEHOLDER_CLOCK
+  return new Date(nowSeconds * 1000).toLocaleTimeString('en-KE', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -24,30 +26,31 @@ function formatElapsed(totalSeconds: number) {
 
 interface TimeDialProps {
   isClockedIn: boolean
-  elapsedSeconds: number
+  /** Worked seconds across every punch today — what the ring and the caption track. */
+  todaySeconds: number
+  /** Seconds on the currently open punch only. */
+  sessionSeconds: number
+  nowSeconds: number
 }
 
-export default function TimeDial({ isClockedIn, elapsedSeconds }: TimeDialProps) {
-  // Lazy initializer: this component only ever mounts client-side (parent
-  // gates it behind a post-hydration flag), so reading the real clock here
-  // is safe and avoids a synchronous setState in an effect.
-  const [now, setNow] = useState<Date>(() => new Date())
-
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
+export default function TimeDial({
+  isClockedIn,
+  todaySeconds,
+  sessionSeconds,
+  nowSeconds,
+}: TimeDialProps) {
   const radius = 148
   const circumference = 2 * Math.PI * radius
-  const progress = Math.min(elapsedSeconds / SHIFT_TARGET_SECONDS, 1)
+  // The ring fills toward a full day, not a single punch, so it keeps its
+  // position across a lunch break instead of snapping back to empty.
+  const progress = Math.min(todaySeconds / DAILY_TARGET_SECONDS, 1)
   const offset = circumference * (1 - progress)
 
   const state = !isClockedIn
     ? 'idle'
-    : elapsedSeconds >= SHIFT_TARGET_SECONDS
+    : todaySeconds >= DAILY_TARGET_SECONDS
       ? 'overtime'
-      : elapsedSeconds >= APPROACHING_THRESHOLD_SECONDS
+      : todaySeconds >= APPROACHING_THRESHOLD_SECONDS
         ? 'approaching'
         : 'normal'
 
@@ -116,17 +119,24 @@ export default function TimeDial({ isClockedIn, elapsedSeconds }: TimeDialProps)
             aria-hidden="true"
             className="time-dial__tick"
             style={{
-              transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(calc(-1 * min(37vw, 9rem)))`,
+              transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(calc(-0.47 * var(--dial-size)))`,
             }}
           />
         ))}
 
         <div className="time-dial__content">
-          <span className="time-dial__time">{formatClock(now)}</span>
+          <span className="time-dial__time">{formatClock(nowSeconds)}</span>
           <span className="time-dial__caption">
             <ClockIcon size={14} strokeWidth={1.8} aria-hidden="true" />
-            {isClockedIn ? `Shift: ${formatElapsed(elapsedSeconds)}` : 'Not clocked in'}
+            {isClockedIn || todaySeconds > 0
+              ? `Today: ${formatElapsed(todaySeconds)}`
+              : 'Not clocked in'}
           </span>
+          {isClockedIn && (
+            <span className="time-dial__subcaption">
+              This session: {formatElapsed(sessionSeconds)}
+            </span>
+          )}
         </div>
       </div>
     </div>

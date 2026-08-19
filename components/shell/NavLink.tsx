@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, ClipboardList, CheckSquare, BarChart3, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, ClipboardList, CheckSquare, BarChart3, TableProperties, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -11,6 +11,7 @@ const ICONS: Record<string, LucideIcon> = {
   '/leave': ClipboardList,
   '/leave/approvals': CheckSquare,
   '/reports': BarChart3,
+  '/reports/timesheets': TableProperties,
   '/admin/users': ShieldCheck,
 }
 
@@ -18,13 +19,16 @@ export default function NavLink({
   href,
   label,
   variant = 'sidebar',
+  exact = false,
 }: {
   href: string
   label: string
   variant?: 'sidebar' | 'tab'
+  /** Match the path exactly — set when another nav item nests under this one. */
+  exact?: boolean
 }) {
   const pathname = usePathname()
-  const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
+  const isActive = exact || href === '/' ? pathname === href : pathname.startsWith(href)
   const Icon = ICONS[href] ?? LayoutDashboard
 
   if (variant === 'tab') {

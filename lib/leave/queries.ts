@@ -108,3 +108,29 @@ export async function getBranchStaff(branchId: string, orgWide: boolean): Promis
   const { data } = await query.order('full_name')
   return (data ?? []).map((row) => ({ id: row.id, fullName: row.full_name }))
 }
+
+/** Count of the user's own leave requests still awaiting a decision. */
+export async function countMyPendingLeave(userId: string): Promise<number> {
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('leave_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending')
+    .or(`requester_id.eq.${userId},filed_by_id.eq.${userId}`)
+
+  return count ?? 0
+}
+
+/** Count of pending requests waiting on this approver, branch- or org-scoped. */
+export async function countApprovalQueue(branchId: string, orgWide: boolean): Promise<number> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('leave_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending')
+  if (!orgWide) {
+    query = query.eq('branch_id', branchId)
+  }
+  const { count } = await query
+  return count ?? 0
+}

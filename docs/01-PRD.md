@@ -37,16 +37,17 @@ The original single-page, `localStorage`-only prototype (dial + manual punch log
 - **Leave management**: request leave (Annual / Sick / Compassionate / Unpaid / Other); a Branch Manager or HR/Accounts can file leave *on behalf of* someone else; an approvals queue (branch- or org-scoped) with approve/reject and an optional decision note; self-cancel a pending request.
 - **Calendar & daily hours**: a month view of hours worked per day (DepthMe "Progress" calendar pattern, ported to the Citywalk gold/ink palette), plus a weekly hero progress ring against a 40h/week target. See [`03-DESIGN-SPEC.md`](./03-DESIGN-SPEC.md).
 - **Reports**: hours worked and approved leave, broken down by branch (or org-wide for HR/Accounts), gated by permission.
+- **Timesheets & export**: an employee x day hours grid for any pay period (this/last month, 1st–15th, 16th–end, rolling 7/30 days, or a custom range), arranged branch-wise or name-wise, downloadable as styled Excel, print-ready PDF, or CSV. HR/Accounts and Admin can pick any branch or all branches at once; a Branch Manager is pinned to their own branch, enforced server-side and by RLS — not just in the UI.
 - **RBAC**: four roles, a real permission matrix editable at `/admin/permissions`, and a `/admin/users` screen to change someone's role or deactivate their account.
-- A persistent nav shell (sidebar on desktop, bottom tabs on mobile) replacing the old single page.
+- A persistent nav shell (sidebar on desktop, bottom tabs on mobile) replacing the old single page. The mobile bar shows the top four destinations and moves the rest behind a "More" sheet.
 
 ### Phase 2b+ — Work in Progress
-Tracked in the app's Capabilities grid (`components/CapabilitiesGrid.tsx`) and in [`08-OPEN-QUESTIONS.md`](./05-OPEN-QUESTIONS.md):
+Tracked here and in [`05-OPEN-QUESTIONS.md`](./05-OPEN-QUESTIONS.md). The in-app Capabilities grid that used to advertise this list on every staff member's dashboard has been removed — staff should see their own shift, not a roadmap of features that don't exist. The roadmap lives in these docs:
 - Geofenced / location-verified punches (branch-radius check).
-- Biometric verification (face or fingerprint) to prevent buddy-punching.
+- Biometric verification (face or fingerprint) to prevent buddy-punching, via a vendor-agnostic adapter layer supporting both device-push (webhook) and pull (scheduled sync) ingest.
 - Offline-first punching with background sync once connectivity returns.
 - **Punch correction & approval** — a manager reviewing/editing a missed or wrong punch. (Distinct from leave approval, which is live: this is about fixing *punches*, not leave.)
-- Payroll export (feeds the eventual Payroll module referenced in the Citywalk Portal Hub).
+- A payroll-system-specific export format (the generic Excel/PDF/CSV timesheet export is live; feeding the eventual Payroll module referenced in the Citywalk Portal Hub is still to come).
 - Shift scheduling & rota, with actual-vs-scheduled comparison.
 - Push notifications/reminders for forgotten punches.
 - **AI Assistant** — anomaly detection, natural-language timesheet queries, smart shift suggestions. Not implemented, not wired to any model.
@@ -57,9 +58,10 @@ Tracked in the app's Capabilities grid (`components/CapabilitiesGrid.tsx`) and i
 |---|---|---|
 | FR1 | A new user signs up with name, email, password, and their branch; the account is active immediately. | 2a |
 | FR2 | User can clock in, starting a live elapsed-time counter; only one open punch per user (DB-enforced). | 2a |
+| FR2a | The dial counts the **day's cumulative worked time**, not the current punch — clocking out and back in continues the running total rather than restarting at zero. Current-session time is shown as a secondary readout. | 2a |
 | FR3 | User can clock out, closing the current punch and logging duration. | 2a |
 | FR4 | Today's punches are listed with in/out time and computed duration, fetched from the backend. | 2a |
-| FR5 | The dial visually communicates approaching (7h+) and overtime (8h+) states. | 2a |
+| FR5 | The dial visually communicates approaching (7h+) and overtime (8h+) states, measured against the day's total. | 2a |
 | FR6 | A user can request leave (type, date range, reason); a Branch Manager/HR-Accounts can file it for someone else instead. | 2a |
 | FR7 | A Branch Manager sees and can approve/reject pending leave for their branch; HR/Accounts sees and can approve/reject pending leave for any branch. | 2a |
 | FR8 | A requester (or whoever filed it) can cancel their own pending leave request. | 2a |
@@ -68,9 +70,11 @@ Tracked in the app's Capabilities grid (`components/CapabilitiesGrid.tsx`) and i
 | FR11 | A branch/org report shows total hours, active staff, and approved leave by type, for a date range. | 2a |
 | FR12 | An Admin can change a user's role or deactivate their account. | 2a |
 | FR13 | An Admin can edit what each role is allowed to do, per permission, without a code change. | 2a |
+| FR18 | A timesheet screen shows an employee x day hours grid for a pay period, sortable/searchable, with per-day, overtime and total columns. | 2a |
+| FR19 | Signing out asks for confirmation — branch devices are shared, and an accidental sign-out mid-shift is a real cost. | 2a |
 | FR14 | A punch is rejected (or flagged) if the device is outside the branch geofence. | 2b |
 | FR15 | A manager can view, correct, and approve/reject a flagged or missed punch. | 2b |
-| FR16 | Approved hours can be exported for a payroll run, per branch and pay period. | 2b |
+| FR16 | Approved hours can be exported for a payroll run, per branch and pay period, as styled Excel, print-ready PDF, or raw CSV — arranged branch-wise or name-wise, one branch or all at once. | **2a (done)** |
 | FR17 | The system detects anomalous patterns (e.g. identical in/out times across staff, punches with no matching schedule) and flags them for review. | 3 (AI) |
 
 ## 5. Non-Functional Requirements

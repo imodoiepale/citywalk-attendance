@@ -12,8 +12,8 @@ Numbered questions for the product owner, grouped by topic, each with the defaul
 
 ## B. Roles & rights
 
-**Q3.** Who should hold `hr_accounts` in practice — a single central person, or one per department (HR vs. Accounts split)? The current model treats "HR" and "Accounts" as one role with identical org-wide rights.
-*Default in force:* one combined `hr_accounts` role.
+**Q3.** Who should hold `hr_accounts` in practice — a single central person, or one per department? The current model treats "HR" and "Accounts" as one role with identical org-wide rights.
+*Decided 2026-08-19:* keep them combined. Accounts therefore has the same org-wide reporting and export rights as HR by construction; no separate `accounts` role. Revisit only if Accounts needs export/payroll rights *without* HR's leave-approval rights — that would need a new enum value and a migration.
 
 **Q4.** Should there be an intermediate role between `branch_manager` and `hr_accounts` — e.g. a regional manager overseeing several but not all branches? The current model is binary: your own branch, or every branch.
 *Default in force:* not modeled. Adding it would need a `user_branches`-style many-to-many table (like the DMS uses) instead of the current single `branch_id` on `profiles`.
@@ -36,11 +36,9 @@ Numbered questions for the product owner, grouped by topic, each with the defaul
 
 ## E. Reporting
 
-**Q9.** What's the actual reporting cadence Accounts needs — is a rolling "last N days" filter (today's implementation) sufficient, or do they need fixed pay-period boundaries (e.g. 1st–15th, 16th–end of month)?
-*Default in force:* rolling N-day window, `N` chosen via a query param, defaulting to 30.
+**Q9.** ~~What's the actual reporting cadence Accounts needs?~~ **Resolved 2026-08-19:** `/reports/timesheets` offers both — fixed pay-period presets (this month, last month, 1st–15th, 16th–end) *and* rolling 7/30-day windows, plus a custom range. `/reports` still uses the rolling `?days=` window.
 
-**Q10.** Does Accounts need to export report data (CSV/Excel), or is on-screen viewing enough for now?
-*Default in force:* on-screen only — see FR16 in the PRD (payroll export, Phase 2b).
+**Q10.** ~~Does Accounts need to export report data?~~ **Resolved 2026-08-19:** yes — styled Excel (`.xlsx`), print-ready PDF, and raw CSV, all from `/reports/timesheets`.
 
 ## F. Brand & domains
 

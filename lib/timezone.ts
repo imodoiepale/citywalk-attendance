@@ -21,3 +21,18 @@ export function toNairobiDateKey(iso: string): string {
   const d = String(nairobi.getUTCDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+/**
+ * UTC instants bounding a Nairobi calendar month — i.e. 00:00 Nairobi on the
+ * 1st, up to (not including) 00:00 Nairobi on the 1st of the next month.
+ *
+ * Querying by plain `Date.UTC(...)` bounds while bucketing results by Nairobi
+ * day skews the edges by 3 hours, which silently drops the first few hours of
+ * a month and pulls in the tail of the previous one.
+ */
+export function nairobiMonthRangeUtc(year: number, month: number): { start: Date; end: Date } {
+  return {
+    start: new Date(Date.UTC(year, month - 1, 1) - NAIROBI_OFFSET_MS),
+    end: new Date(Date.UTC(year, month, 1) - NAIROBI_OFFSET_MS),
+  }
+}

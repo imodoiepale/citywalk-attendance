@@ -7,7 +7,8 @@ Visual/UX detail. Product scope is in [`01-PRD.md`](./01-PRD.md); technical arch
 1. **The dial is the anchor.** Everything else in the app is in service of "how am I doing on my shift right now" — leave, calendar and reports are secondary screens reached via nav, not competing for the home screen.
 2. **State is never colour-only.** The dial's idle/normal/approaching/overtime states, leave status badges, and calendar day buckets all pair colour with text or shape (a label, a number, a ring position) — never colour alone.
 3. **One product family.** Colour tokens, radius, and the gold/ink identity are shared verbatim with `citywalk-delivery-management-system` and `CityWalk-Portal-Hub`, so switching between the three reads as one company, not three unrelated builds.
-4. **No calendar or animation libraries.** The dial and the calendar are both hand-rolled (SVG + CSS, plain `Date` math) — ported patterns from DepthMe rather than a dependency, keeping the bundle small and the visual language fully under our control.
+4. **No calendar or animation libraries.** The dial and the calendar are both hand-rolled (SVG + CSS, plain `Date` math) — ported patterns from DepthMe rather than a dependency, keeping the bundle small and the visual language fully under our control. **Exception (2026-08-19):** data-dense HR tables use `@tanstack/react-table` v9 for sorting/filtering/pagination/column visibility. Hand-rolling that state machine for a 30-column timesheet was not worth it; the markup is still ours (`components/ui/table.tsx`), so the visual language is unchanged — only the row-model logic is borrowed. No Radix, still no shadcn CLI.
+5. **Don't make people scroll for the primary action.** The dial was scaled down (`--dial-size`) specifically so the Clock In button and today's punch log sit above the fold on a phone; tables cap their own height and paginate rather than growing the page.
 
 ## Design tokens
 
@@ -26,6 +27,8 @@ Same split-gold rationale as the DMS: `#FDEC06` has too little contrast to ever 
 ## Application shell
 
 `components/shell/AppShell.tsx` — left sidebar (`md:` and up) or bottom tab bar (mobile), listing only the routes the signed-in user's permission map actually allows (`navFor()` in `lib/rbac-catalog.ts`). Branch devices are assumed to skew mobile/tablet, hence the bottom-tab-first mobile treatment rather than a hamburger menu.
+
+The mobile bar (`components/shell/MobileTabBar.tsx`) caps at four tabs plus a **More** sheet (`splitNavForMobile()`): an admin qualifies for six destinations, and six tabs edge-to-edge at 375px is unreadable. Ordering is declared once via `NavItem.priority`. The bar carries `env(safe-area-inset-bottom)` padding so it clears the iOS home indicator in standalone PWA mode.
 
 ## The dial (`components/TimeDial.tsx` + `components/clock-dial.css`)
 
@@ -46,8 +49,8 @@ Reworked from a meditation countdown into a live shift clock:
 
 | | DepthMe (source) | Citywalk Attendance |
 |---|---|---|
-| Ring direction | Unwinds full → empty over a session | **Fills** empty → full as a shift elapses toward 8h |
-| Center readout | `M:SS` remaining | Live wall-clock `HH:MM:SS` + "Shift: Xh Ym" |
+| Ring direction | Unwinds full → empty over a session | **Fills** empty → full as the *day's total* elapses toward 8h — it holds its position across a lunch break instead of resetting |
+| Center readout | `M:SS` remaining | Live wall-clock `HH:MM:SS` + "Today: Xh Ym" (day total) + "This session: Xh Ym" while clocked in |
 | Rotating layer | Decorative artwork image, always spinning | Conic-gradient sunburst, only animates while clocked in (signals "actively tracking") |
 | Colour | Fixed per "guide" (morning/shadow/vision/night) | Dynamic by state: idle (grey) → normal (gold) → approaching 7h+ (amber) → overtime 8h+ (red, pulsing) |
 
@@ -65,7 +68,7 @@ Ported from DepthMe's `MeditationCalendar.tsx` — the cleaner of its two calend
 
 ## Component inventory
 
-Hand-rolled shadcn-style primitives (`cva` + `React.forwardRef` + `cn()`, no Radix, no shadcn CLI — `components/ui/`): `button`, `card`, `badge` (variants: `default`, `secondary`, `outline`, `success`, `warning`, `destructive`), `input`, `label`, `select` (a plain styled native `<select>` — sufficient at this app's scale, no combobox library), `textarea`.
+Hand-rolled shadcn-style primitives (`cva` + `React.forwardRef` + `cn()`, no Radix, no shadcn CLI — `components/ui/`): `button`, `card`, `badge` (variants: `default`, `secondary`, `outline`, `success`, `warning`, `destructive`), `input`, `label`, `select` (a plain styled native `<select>` — sufficient at this app's scale, no combobox library), `textarea`, `table` (shadcn's Table/Header/Body/Footer/Row/Head/Cell set, bordered by default — HR reads these as ledgers), `confirm-dialog` (small modal with Escape-to-close and scroll lock; used for the sign-out confirmation, since branch devices are shared and an accidental logout costs real time).
 
 Domain components live under `components/{calendar,leave,reports,admin,shell}/` — see [`02-SYSTEM-SPEC.md`](./02-SYSTEM-SPEC.md)'s repository layout for the full list.
 

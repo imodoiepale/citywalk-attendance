@@ -39,7 +39,11 @@
 .time-dial {
   position: relative;
   display: grid;
-  width: min(78vw, 19rem);
+  /* Scaled down from min(78vw, 19rem): at the old size the dial alone filled a
+     phone screen, pushing the Clock In button and today's punch log below the
+     fold. Everything that matters now fits without scrolling. */
+  --dial-size: min(56vw, 13.5rem);
+  width: var(--dial-size);
   aspect-ratio: 1;
   place-items: center;
   margin: 0 auto;
@@ -235,12 +239,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .time-dial__time {
   color: #fff;
-  font-size: clamp(2rem, 9vw, 2.65rem);
+  font-size: clamp(1.35rem, 6vw, 1.75rem);
   font-weight: 300;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
@@ -251,10 +255,19 @@
 .time-dial__caption {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
+  gap: 0.35rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: color-mix(in srgb, var(--dial-accent-end) 78%, #fff);
+}
+
+/* Secondary line: the current punch, under the running day total. Deliberately
+   quieter than the caption — the day total is the number that matters. */
+.time-dial__subcaption {
+  font-size: 0.63rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 @keyframes dial-halo-breathe {

@@ -3,8 +3,8 @@
 import { useOptimistic, useTransition } from 'react'
 import TimeDial from './TimeDial'
 import ClockInOutCard from './ClockInOutCard'
-import CapabilitiesGrid from './CapabilitiesGrid'
-import { useShiftClock } from '@/lib/useShiftClock'
+import TodaySummary, { type DashboardSummary } from './TodaySummary'
+import { useTodayShiftClock } from '@/lib/useShiftClock'
 import { clockInAction, clockOutAction } from '@/lib/punches/actions'
 import type { PunchRecord } from '@/lib/punches/queries'
 
@@ -17,12 +17,19 @@ function applyOptimisticUpdate(state: PunchRecord[], action: OptimisticAction): 
   return state.map((p) => (p.clockOutAt === null ? { ...p, clockOutAt: new Date().toISOString() } : p))
 }
 
-export default function DashboardClient({ punches }: { punches: PunchRecord[] }) {
+export default function DashboardClient({
+  punches,
+  summary,
+}: {
+  punches: PunchRecord[]
+  summary: DashboardSummary
+}) {
   const [isPending, startTransition] = useTransition()
   const [optimisticPunches, applyOptimistic] = useOptimistic(punches, applyOptimisticUpdate)
 
   const activePunch = optimisticPunches.find((p) => p.clockOutAt === null) ?? null
-  const elapsedSeconds = useShiftClock(activePunch?.clockInAt ?? null)
+  const { todaySeconds, sessionSeconds, isClockedIn, nowSeconds } =
+    useTodayShiftClock(optimisticPunches)
 
   const handleClockIn = () => {
     startTransition(async () => {
@@ -40,16 +47,25 @@ export default function DashboardClient({ punches }: { punches: PunchRecord[] })
 
   return (
     <>
-      <TimeDial isClockedIn={activePunch !== null} elapsedSeconds={elapsedSeconds} />
+      <TimeDial
+        isClockedIn={isClockedIn}
+        todaySeconds={todaySeconds}
+        sessionSeconds={sessionSeconds}
+        nowSeconds={nowSeconds}
+      />
       <ClockInOutCard
-        isClockedIn={activePunch !== null}
+        isClockedIn={isClockedIn}
         activePunch={activePunch}
         todaysPunches={optimisticPunches}
         onClockIn={handleClockIn}
         onClockOut={handleClockOut}
         isPending={isPending}
       />
-      <CapabilitiesGrid />
+      <TodaySummary
+        todaySeconds={todaySeconds}
+        sessionCount={optimisticPunches.length}
+        summary={summary}
+      />
     </>
   )
 }

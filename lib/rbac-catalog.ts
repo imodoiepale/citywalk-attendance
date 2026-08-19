@@ -86,26 +86,37 @@ export function canAtLeast(
 export interface NavItem {
   href: string
   label: string
+  /** Lower sorts earlier, and wins a slot in the cramped mobile tab bar. */
+  priority: number
   match: (permissions: Partial<Record<Permission, AccessLevel>>, role: Role) => boolean
 }
 
 export const NAV: NavItem[] = [
-  { href: '/', label: 'Dashboard', match: () => true },
-  { href: '/calendar', label: 'Calendar', match: () => true },
-  { href: '/leave', label: 'Leave', match: () => true },
+  { href: '/', label: 'Dashboard', priority: 1, match: () => true },
+  { href: '/calendar', label: 'Calendar', priority: 2, match: () => true },
+  { href: '/leave', label: 'Leave', priority: 3, match: () => true },
   {
     href: '/leave/approvals',
     label: 'Approvals',
+    priority: 4,
     match: (p, r) => canAtLeast(p, r, 'leave.approve.branch', 'branch') || canAtLeast(p, r, 'leave.approve.org', 'org'),
   },
   {
     href: '/reports',
     label: 'Reports',
+    priority: 5,
+    match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
+  },
+  {
+    href: '/reports/timesheets',
+    label: 'Timesheets',
+    priority: 6,
     match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
   },
   {
     href: '/admin/users',
     label: 'Admin',
+    priority: 7,
     match: (p, r) => canAtLeast(p, r, 'admin.users', 'full'),
   },
 ]
@@ -114,5 +125,28 @@ export function navFor(
   permissions: Partial<Record<Permission, AccessLevel>>,
   role: Role
 ): NavItem[] {
-  return NAV.filter((item) => item.match(permissions, role))
+  return NAV.filter((item) => item.match(permissions, role)).sort((a, b) => a.priority - b.priority)
+}
+
+/**
+ * True when a nav link must match the path exactly rather than by prefix —
+ * i.e. another nav item lives underneath it. Without this, `/reports` stays
+ * highlighted while you're on `/reports/timesheets` and two tabs look active.
+ */
+export function isExactNav(nav: NavItem[], href: string): boolean {
+  if (href === '/') return true
+  return nav.some((item) => item.href !== href && item.href.startsWith(`${href}/`))
+}
+
+/** How many nav items the mobile tab bar shows before overflowing into "More". */
+export const MOBILE_TAB_SLOTS = 4
+
+/**
+ * Splits the nav for a phone. An admin qualifies for six destinations, which
+ * squeezed edge-to-edge is unusable on a 375px screen — the top few keep a
+ * tab, the rest move behind "More".
+ */
+export function splitNavForMobile(nav: NavItem[]): { tabs: NavItem[]; overflow: NavItem[] } {
+  if (nav.length <= MOBILE_TAB_SLOTS + 1) return { tabs: nav, overflow: [] }
+  return { tabs: nav.slice(0, MOBILE_TAB_SLOTS), overflow: nav.slice(MOBILE_TAB_SLOTS) }
 }

@@ -1,11 +1,14 @@
 import Image from 'next/image'
 import NavLink from './NavLink'
 import UserMenu from './UserMenu'
-import { navFor } from '@/lib/rbac-catalog'
+import MobileTabBar from './MobileTabBar'
+import MobileTopNav from './MobileTopNav'
+import { isExactNav, navFor, splitNavForMobile } from '@/lib/rbac-catalog'
 import type { CurrentUser } from '@/lib/auth'
 
 export default function AppShell({ user, children }: { user: CurrentUser; children: React.ReactNode }) {
   const nav = navFor(user.permissions, user.role)
+  const { tabs, overflow } = splitNavForMobile(nav)
 
   return (
     <div className="min-h-screen bg-background md:flex">
@@ -19,32 +22,44 @@ export default function AppShell({ user, children }: { user: CurrentUser; childr
         </div>
         <nav className="flex flex-1 flex-col gap-1">
           {nav.map((item) => (
-            <NavLink key={item.href} href={item.href} label={item.label} />
+            <NavLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              exact={isExactNav(nav, item.href)}
+            />
           ))}
         </nav>
         <UserMenu fullName={user.fullName} branchName={user.branchName} role={user.role} />
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        {/* Mobile top bar */}
-        <header className="flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-sm md:hidden">
+        {/* Mobile top bar — sticky so the brand + account controls stay reachable
+            without scrolling back up on a long report. */}
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur-sm md:hidden">
           <div className="flex items-center gap-2">
             <Image src="/logo-mark.png" alt="Citywalk" width={24} height={24} className="rounded-md" />
             <span className="bg-gradient-to-r from-[#AB8704] to-[#FDEC06] bg-clip-text text-sm font-semibold text-transparent">
               Citywalk Attendance
             </span>
           </div>
-          <UserMenu fullName={user.fullName} branchName={user.branchName} role={user.role} />
+          <UserMenu
+            fullName={user.fullName}
+            branchName={user.branchName}
+            role={user.role}
+            compact
+          />
         </header>
 
-        <main className="flex-1 pb-20 md:pb-0">{children}</main>
+        {/* Every destination, including anything behind the bottom bar's "More". */}
+        <div className="sticky top-[3.25rem] z-10 md:hidden">
+          <MobileTopNav nav={nav} />
+        </div>
+
+        <main className="flex-1 pb-24 md:pb-0">{children}</main>
 
         {/* Mobile bottom tab bar — branch devices are often phones/tablets */}
-        <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-background/95 backdrop-blur-sm md:hidden">
-          {nav.map((item) => (
-            <NavLink key={item.href} href={item.href} label={item.label} variant="tab" />
-          ))}
-        </nav>
+        <MobileTabBar tabs={tabs} overflow={overflow} />
       </div>
     </div>
   )
