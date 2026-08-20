@@ -42,8 +42,8 @@ export default async function CalendarPage({
   const monthTotal = Array.from(hoursByDay.values()).reduce((sum, h) => sum + h, 0)
 
   return (
-    <div className="w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8">
-      <div className="space-y-8">
+    <div className="w-full px-4 pb-4 pt-2 sm:px-6 lg:px-8">
+      <div className="space-y-3 lg:space-y-4">
         <div>
           <h1 className="text-xl font-bold text-foreground">Calendar</h1>
           <p className="text-sm text-muted-foreground">
