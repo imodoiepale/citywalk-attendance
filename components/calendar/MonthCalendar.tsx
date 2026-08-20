@@ -36,14 +36,14 @@ export default function MonthCalendar({
   }
 
   return (
-    <div data-tour="month-calendar" className="space-y-2">
-      <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div data-tour="month-calendar" className="space-y-1">
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
         {WEEKDAY_LABELS.map((d) => (
           <span key={d}>{d}</span>
         ))}
       </div>
       {weeks.map((week, i) => (
-        <div key={i} className="grid grid-cols-7 gap-1.5">
+        <div key={i} className="grid grid-cols-7 gap-1">
           {week.map((day, j) => {
             const dateKey = day ? `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null
             return (
