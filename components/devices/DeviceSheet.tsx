@@ -197,7 +197,7 @@ export default function DeviceSheet({
       {trigger ? (
         <span onClick={() => setOpen(true)}>{trigger}</span>
       ) : (
-        <Button size="sm" onClick={() => setOpen(true)}>
+        <Button size="sm" data-tour="device-add" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" />
           Add device
         </Button>

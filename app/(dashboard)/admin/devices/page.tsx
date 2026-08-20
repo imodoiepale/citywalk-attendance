@@ -67,7 +67,7 @@ export default async function DevicesPage() {
             attendance.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="device-links" className="flex flex-wrap gap-2">
           <Link
             href="/admin/devices/enrollments"
             className={buttonVariants({ variant: 'outline', size: 'sm' })}
@@ -85,7 +85,7 @@ export default async function DevicesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+      <div data-tour="device-health" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         <Stat label="Devices" value={summary.total} />
         <Stat label="Online" value={summary.online} />
         <Stat label="Not seen recently" value={summary.stale} tone="warn" />

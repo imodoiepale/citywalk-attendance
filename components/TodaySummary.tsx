@@ -63,7 +63,7 @@ export default function TodaySummary({
       : 0
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-2.5">
+    <div data-tour="today-summary" className="mx-auto w-full max-w-4xl space-y-2.5">
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         <Stat
           icon={Timer}

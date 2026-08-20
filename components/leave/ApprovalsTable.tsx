@@ -217,13 +217,15 @@ export default function ApprovalsTable({
 
   return (
     <div className="space-y-3">
-      <TableTabs
-        active={tab}
-        onChange={setTab}
-        tabs={TABS.map((t) => ({ ...t, count: counts[t.value] ?? 0 }))}
-      />
+      <div data-tour="approval-tabs">
+        <TableTabs
+          active={tab}
+          onChange={setTab}
+          tabs={TABS.map((t) => ({ ...t, count: counts[t.value] ?? 0 }))}
+        />
+      </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-tour="approval-filters" className="flex flex-wrap items-center gap-2">
         <TableSearch value={query} onChange={setQuery} placeholder="Search staff, branch or reason…" />
         <FilterMenu label="Branch" options={branchOptions} selected={branches} onChange={setBranches} />
         <FilterMenu label="Type" options={typeOptions} selected={types} onChange={setTypes} />
@@ -246,7 +248,7 @@ export default function ApprovalsTable({
           </CardContent>
         </Card>
       ) : (
-        <Table containerClassName="max-h-[65vh] overflow-y-auto rounded-xl border border-border">
+        <Table containerClassName="max-h-[65vh] overflow-y-auto rounded-xl border border-border" data-tour="approval-table">
           <TableHeader>
             <TableRow>
               <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />

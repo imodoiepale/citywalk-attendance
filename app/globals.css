@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* driver.js ships a light-only popover theme; imported here and restyled to
+   the Citywalk palette at the bottom of this file. */
+@import "driver.js/dist/driver.css";
 
 /* Citywalk Attendance — design tokens.
  *
@@ -227,4 +230,66 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+
+.driver-popover.citywalk-tour {
+  background: var(--popover);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card-hover);
+  max-width: 22rem;
+}
+
+.driver-popover.citywalk-tour .driver-popover-title {
+  color: var(--foreground);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.driver-popover.citywalk-tour .driver-popover-description {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.driver-popover.citywalk-tour .driver-popover-progress-text {
+  color: var(--muted-foreground-2);
+  font-size: 0.6875rem;
+}
+
+.driver-popover.citywalk-tour .driver-popover-navigation-btns button {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  text-shadow: none;
+  padding: 0.25rem 0.7rem;
+}
+
+/* The forward action is the one to follow, so it carries the brand gold. */
+.driver-popover.citywalk-tour .driver-popover-navigation-btns button:last-child {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.driver-popover.citywalk-tour .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+.driver-popover.citywalk-tour .driver-popover-arrow-side-top {
+  border-top-color: var(--popover);
+}
+.driver-popover.citywalk-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--popover);
+}
+.driver-popover.citywalk-tour .driver-popover-arrow-side-left {
+  border-left-color: var(--popover);
+}
+.driver-popover.citywalk-tour .driver-popover-arrow-side-right {
+  border-right-color: var(--popover);
 }

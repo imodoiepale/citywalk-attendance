@@ -32,7 +32,7 @@ export default function RequestLeaveDialog({
 
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" data-tour="request-leave" onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" />
         Request leave
       </Button>

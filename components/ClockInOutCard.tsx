@@ -40,7 +40,7 @@ export default function ClockInOutCard({
 }: ClockInOutCardProps) {
   return (
     <div className="mx-auto w-full max-w-md space-y-3">
-      <div className="flex flex-col items-center gap-1.5">
+      <div data-tour="clock-button" className="flex flex-col items-center gap-1.5">
         {/* Sized to its label rather than the container. A full-width pill made
             the button the loudest thing on the page, above the dial it exists to
             control. */}

@@ -145,7 +145,7 @@ export default function TimesheetTable({
         </Button>
       </div>
 
-      <Table containerClassName="max-h-[60vh] overflow-y-auto rounded-xl border border-border">
+      <Table containerClassName="max-h-[60vh] overflow-y-auto rounded-xl border border-border" data-tour="timesheet-table">
         <TableHeader>
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>

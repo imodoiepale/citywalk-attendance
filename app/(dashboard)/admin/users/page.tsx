@@ -24,7 +24,7 @@ export default async function AdminUsersPage() {
             branch on a user&rsquo;s own page.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="admin-links" className="flex flex-wrap gap-2">
           {canPermissions ? (
             <Link
               href="/admin/permissions"

@@ -63,7 +63,7 @@ export default async function CorrectionsPage() {
           </CardContent>
         </Card>
       ) : (
-        <ul className="space-y-3">
+        <ul data-tour="corrections-queue" className="space-y-3">
           {queue.map((correction) => (
             <li key={correction.id}>
               <Card>

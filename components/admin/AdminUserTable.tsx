@@ -120,7 +120,7 @@ export default function AdminUserTable({
         </Select>
       </div>
 
-      <Table containerClassName="rounded-2xl border border-border bg-card shadow-card">
+      <Table containerClassName="rounded-2xl border border-border bg-card shadow-card" data-tour="admin-user-table">
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>

@@ -84,7 +84,7 @@ export default function TimesheetToolbar({
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="timesheet-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1">
           <Label htmlFor="branch" className="text-xs">
             Branch
@@ -177,7 +177,7 @@ export default function TimesheetToolbar({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+      <div data-tour="timesheet-export" className="flex flex-wrap gap-2 border-t border-border pt-3">
         <Button
           type="button"
           size="sm"

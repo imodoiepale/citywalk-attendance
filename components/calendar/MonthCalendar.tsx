@@ -36,7 +36,7 @@ export default function MonthCalendar({
   }
 
   return (
-    <div className="space-y-2">
+    <div data-tour="month-calendar" className="space-y-2">
       <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         {WEEKDAY_LABELS.map((d) => (
           <span key={d}>{d}</span>

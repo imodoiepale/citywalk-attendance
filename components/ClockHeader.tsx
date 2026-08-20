@@ -39,7 +39,7 @@ function formatWallClock(nowSeconds: number) {
  */
 export default function ClockHeader({ nowSeconds }: { nowSeconds: number }) {
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div data-tour="clock-header" className="flex flex-col items-center gap-0.5">
       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
         {formatDate(nowSeconds)}

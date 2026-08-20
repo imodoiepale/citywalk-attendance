@@ -6,19 +6,6 @@ import './clock-dial.css'
 
 const PLACEHOLDER_CLOCK = '--:--:--'
 
-function formatClock(nowSeconds: number) {
-  // 0 means "not hydrated yet" (see useShiftClock's server snapshot) — render
-  // a placeholder rather than a server-side time that won't match the client's.
-  if (nowSeconds === 0) return PLACEHOLDER_CLOCK
-  return new Date(nowSeconds * 1000).toLocaleTimeString('en-KE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'Africa/Nairobi',
-  })
-}
-
 /**
  * HH:MM:SS. The dial's headline number is time worked, and it has to move every
  * second — rounded to minutes it sat unchanged for a minute at a time and read
@@ -74,7 +61,7 @@ export default function TimeDial({
         : 'normal'
 
   return (
-    <div className="time-dial-scope" data-state={state}>
+    <div data-tour="clock-dial" className="time-dial-scope" data-state={state}>
       <div className={`time-dial ${isClockedIn ? 'is-active' : ''}`} aria-label="Shift time dial">
         <div className="time-dial__ambient" aria-hidden="true" />
 
@@ -144,9 +131,10 @@ export default function TimeDial({
         ))}
 
         <div className="time-dial__content">
-          {/* Headline is time worked today, ticking by the second. The wall
-              clock moved to the secondary line — it is the least useful number
-              on a time clock, and it already appears above the dial. */}
+          {/* Time worked today, ticking by the second. The wall clock is
+              deliberately NOT repeated here — ClockHeader already shows it
+              directly above the dial, and having it in both places read as two
+              different clocks disagreeing. */}
           <span className="time-dial__label">Worked today</span>
           <span className="time-dial__time" suppressHydrationWarning>
             {nowSeconds === 0 && todaySeconds === 0
@@ -155,11 +143,8 @@ export default function TimeDial({
           </span>
           <span className="time-dial__caption">
             <ClockIcon size={13} strokeWidth={1.8} aria-hidden="true" />
-            <span suppressHydrationWarning>{formatClock(nowSeconds)}</span>
-          </span>
-          <span className="time-dial__subcaption">
             {isClockedIn
-              ? `This session ${formatElapsed(sessionSeconds)}`
+              ? `Session ${formatElapsed(sessionSeconds)}`
               : todaySeconds > 0
                 ? 'Clocked out'
                 : 'Not clocked in'}

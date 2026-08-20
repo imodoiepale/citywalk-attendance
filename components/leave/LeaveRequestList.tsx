@@ -48,7 +48,7 @@ export default function LeaveRequestList({
   }
 
   return (
-    <ul className="space-y-3">
+    <ul data-tour="leave-list" className="space-y-3">
       {requests.map((req) => {
         const canCancel =
           showCancel &&
