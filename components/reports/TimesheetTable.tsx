@@ -23,6 +23,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -147,6 +149,7 @@ export default function TimesheetTable({
         <TableHeader>
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
+              <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />
               {group.headers.map((header) => {
                 const sorted = header.column.getIsSorted()
                 const numeric = !TEXT_COLUMNS.has(header.column.id)
@@ -183,16 +186,25 @@ export default function TimesheetTable({
           {visibleRows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={visibleColumns.length}
+                colSpan={visibleColumns.length + 1}
                 className="py-8 text-center text-muted-foreground"
               >
                 No staff match this filter.
               </TableCell>
             </TableRow>
           ) : (
-            visibleRows.map((row) => (
+            visibleRows.map((row, index) => (
               <TableRow key={row.id}>
-                {row.getAllCells().map((cell) => {
+                {/* Numbering continues across pages: on page 2 the first row is
+                    26, not 1, so a row number is unambiguous when quoted. */}
+                <TableRowNumber
+                  value={table.state.pagination.pageIndex * table.state.pagination.pageSize + index + 1}
+                />
+                {/* getVisibleCells, not getAllCells: the latter returns hidden
+                    columns too, so with the day columns collapsed each row
+                    rendered more cells than the header had and every value
+                    after "Job title" sat under the wrong heading. */}
+                {row.getVisibleCells().map((cell) => {
                   const id = cell.column.id
                   const isDay = id.startsWith('day:')
                   const numeric = !TEXT_COLUMNS.has(id)
@@ -220,6 +232,7 @@ export default function TimesheetTable({
 
         <TableFooter>
           <TableRow>
+            <TableRowNumber value={0} className="text-transparent" aria-hidden="true" />
             {visibleColumns.map((column, index) => {
               const id = column.id
               if (index === 0) {

@@ -15,7 +15,21 @@ function formatClock(nowSeconds: number) {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
+    timeZone: 'Africa/Nairobi',
   })
+}
+
+/**
+ * HH:MM:SS. The dial's headline number is time worked, and it has to move every
+ * second — rounded to minutes it sat unchanged for a minute at a time and read
+ * as a frozen clock.
+ */
+function formatDuration(totalSeconds: number) {
+  const safe = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(safe / 3600)
+  const minutes = Math.floor((safe % 3600) / 60)
+  const seconds = safe % 60
+  return [hours, minutes, seconds].map((n) => n.toString().padStart(2, '0')).join(':')
 }
 
 function formatElapsed(totalSeconds: number) {
@@ -130,18 +144,26 @@ export default function TimeDial({
         ))}
 
         <div className="time-dial__content">
-          <span className="time-dial__time">{formatClock(nowSeconds)}</span>
-          <span className="time-dial__caption">
-            <ClockIcon size={14} strokeWidth={1.8} aria-hidden="true" />
-            {isClockedIn || todaySeconds > 0
-              ? `Today: ${formatElapsed(todaySeconds)}`
-              : 'Not clocked in'}
+          {/* Headline is time worked today, ticking by the second. The wall
+              clock moved to the secondary line — it is the least useful number
+              on a time clock, and it already appears above the dial. */}
+          <span className="time-dial__label">Worked today</span>
+          <span className="time-dial__time" suppressHydrationWarning>
+            {nowSeconds === 0 && todaySeconds === 0
+              ? PLACEHOLDER_CLOCK
+              : formatDuration(todaySeconds)}
           </span>
-          {isClockedIn && (
-            <span className="time-dial__subcaption">
-              This session: {formatElapsed(sessionSeconds)}
-            </span>
-          )}
+          <span className="time-dial__caption">
+            <ClockIcon size={13} strokeWidth={1.8} aria-hidden="true" />
+            <span suppressHydrationWarning>{formatClock(nowSeconds)}</span>
+          </span>
+          <span className="time-dial__subcaption">
+            {isClockedIn
+              ? `This session ${formatElapsed(sessionSeconds)}`
+              : todaySeconds > 0
+                ? 'Clocked out'
+                : 'Not clocked in'}
+          </span>
         </div>
       </div>
     </div>

@@ -46,6 +46,7 @@ export default function NavLink({
     return (
       <Link
         href={href}
+        prefetch
         aria-current={isActive ? 'page' : undefined}
         className={cn(
           'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors duration-150 ease-standard',
@@ -63,6 +64,9 @@ export default function NavLink({
   return (
     <Link
       href={href}
+      // prefetch={true} also promotes these routes to the `static` staleTime,
+      // so a sidebar destination stays warm for 3 minutes once visited.
+      prefetch
       aria-current={isActive ? 'page' : undefined}
       className={cn(
         'flex h-10 items-center gap-2.5 rounded-[11px] px-3 text-[13px] font-medium transition-colors duration-150 ease-standard',

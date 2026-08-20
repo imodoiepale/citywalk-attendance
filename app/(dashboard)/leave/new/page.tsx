@@ -3,13 +3,8 @@ import { canAtLeast } from '@/lib/rbac-catalog'
 import { getBranchStaff } from '@/lib/leave/queries'
 import LeaveRequestForm from '@/components/leave/LeaveRequestForm'
 
-export default async function NewLeaveRequestPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>
-}) {
+export default async function NewLeaveRequestPage() {
   const user = await requirePermission('leave.request.own', 'own')
-  const params = await searchParams
 
   const canFileOnBehalf = canAtLeast(user.permissions, user.role, 'leave.request.on_behalf', 'branch')
   const orgWide = canAtLeast(user.permissions, user.role, 'leave.request.on_behalf', 'org')
@@ -26,7 +21,6 @@ export default async function NewLeaveRequestPage({
         currentUserName={user.fullName}
         canFileOnBehalf={canFileOnBehalf}
         staffOptions={staffOptions}
-        error={params.error}
       />
     </div>
   )

@@ -199,6 +199,9 @@ try {
     '/admin/permissions',
     '/admin/branches',
     '/admin/settings',
+    '/admin/devices',
+    '/admin/devices/enrollments',
+    '/admin/devices/unmatched',
   ]
 
   for (const route of routes) {

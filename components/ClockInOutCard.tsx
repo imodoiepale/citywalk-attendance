@@ -41,20 +41,22 @@ export default function ClockInOutCard({
   return (
     <div className="mx-auto w-full max-w-md space-y-3">
       <div className="flex flex-col items-center gap-1.5">
+        {/* Sized to its label rather than the container. A full-width pill made
+            the button the loudest thing on the page, above the dial it exists to
+            control. */}
         <Button
-          size="lg"
           variant={isClockedIn ? 'destructive' : 'default'}
-          className="h-12 w-full rounded-full text-base font-semibold shadow-card"
+          className="h-11 rounded-full px-8 text-sm font-semibold shadow-card"
           onClick={isClockedIn ? onClockOut : onClockIn}
           disabled={isPending}
         >
-          {isClockedIn ? <LogOut className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-          {isClockedIn ? 'Clock Out' : 'Clock In'}
+          {isClockedIn ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+          {isPending ? 'Saving…' : isClockedIn ? 'Clock out' : 'Clock in'}
         </Button>
         <p className="text-xs text-muted-foreground">
           {isClockedIn && activePunch
             ? `Clocked in since ${formatTime(activePunch.clockInAt)}`
-            : 'Tap Clock In to start today’s shift'}
+            : 'Tap Clock in to start today’s shift'}
         </p>
       </div>
 

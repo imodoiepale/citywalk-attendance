@@ -11,6 +11,7 @@ export default async function AdminUsersPage() {
 
   const canBranches = canAtLeast(user.permissions, user.role, 'admin.branches', 'full')
   const canSettings = canAtLeast(user.permissions, user.role, 'admin.settings', 'full')
+  const canDevices = canAtLeast(user.permissions, user.role, 'admin.devices', 'full')
   const canPermissions = canAtLeast(user.permissions, user.role, 'admin.permissions', 'full')
 
   return (
@@ -38,6 +39,14 @@ export default async function AdminUsersPage() {
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
               Branches
+            </Link>
+          ) : null}
+          {canDevices ? (
+            <Link
+              href="/admin/devices"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              Devices
             </Link>
           ) : null}
           {canSettings ? (

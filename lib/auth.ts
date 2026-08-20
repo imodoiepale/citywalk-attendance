@@ -40,16 +40,21 @@ interface UserContextRow {
 // is the real enforcement layer. getCurrentUser()/requirePermission() only
 // avoid rendering a door the user can't actually open.
 //
-// One RPC, not a select plus a second RPC. The layout awaits this before any
-// page renders, so an extra sequential round trip here is paid on every single
-// navigation — and at ~0.5s from Nairobi to eu-west-1 that was the single
-// largest chunk of perceived load time.
+// Exactly one network round trip. Two things used to happen here in sequence:
+// supabase.auth.getUser(), which is an HTTP call to the auth server, and then
+// the my_context RPC. At ~340ms each from Nairobi to eu-west-1 that was ~680ms
+// on the critical path of every page render, before the page issued a query of
+// its own.
+//
+// Dropping getUser() does not drop verification. my_context() resolves the
+// caller through auth.uid(), and PostgREST only populates auth.uid() after
+// validating the JWT's signature against the project secret. An expired or
+// forged token yields a null uid, my_context returns null, and this returns
+// null — the same outcome getUser() produced, one hop earlier. The proxy still
+// calls getUser() on every request, which is what refreshes the session cookie;
+// that is its actual job and it stays.
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return null
 
   const { data } = await supabase.rpc('my_context')
   const context = data as UserContextRow | null

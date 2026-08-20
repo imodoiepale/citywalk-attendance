@@ -1,12 +1,25 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
 import { canAtLeast } from '@/lib/rbac-catalog'
 import { createClient } from '@/lib/supabase/server'
 
-export async function fileLeaveRequestAction(formData: FormData) {
+/**
+ * Result shape for useActionState. Deliberately returns instead of redirecting:
+ * redirect() throws, so from inside the request-leave dialog it would navigate
+ * the whole page out from under the open modal rather than surface the problem
+ * next to the field that caused it.
+ */
+export interface LeaveFormState {
+  ok?: boolean
+  error?: string
+}
+
+export async function fileLeaveRequestAction(
+  _prevState: LeaveFormState,
+  formData: FormData
+): Promise<LeaveFormState> {
   const user = await requireUser()
   const supabase = await createClient()
 
@@ -17,12 +30,15 @@ export async function fileLeaveRequestAction(formData: FormData) {
   const reason = String(formData.get('reason') ?? '').trim() || null
 
   if (!type || !startDate || !endDate) {
-    redirect('/leave/new?error=missing')
+    return { error: 'missing' }
+  }
+  if (endDate < startDate) {
+    return { error: 'The end date cannot be before the start date.' }
   }
 
   const onBehalf = requesterId !== user.id
   if (onBehalf && !canAtLeast(user.permissions, user.role, 'leave.request.on_behalf', 'branch')) {
-    redirect('/leave/new?error=forbidden')
+    return { error: 'forbidden' }
   }
 
   let branchId = user.branchId
@@ -33,7 +49,7 @@ export async function fileLeaveRequestAction(formData: FormData) {
       .eq('id', requesterId)
       .single()
     if (!requesterProfile) {
-      redirect('/leave/new?error=missing')
+      return { error: 'missing' }
     }
     branchId = requesterProfile.branch_id
   }
@@ -49,12 +65,14 @@ export async function fileLeaveRequestAction(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/leave/new?error=${encodeURIComponent(error.message)}`)
+    return { error: error.message }
   }
 
+  // These two alone refresh the list behind the dialog — the old
+  // redirect('/leave') is what used to do it, and is not needed now.
   revalidatePath('/leave')
   revalidatePath('/leave/approvals')
-  redirect('/leave')
+  return { ok: true }
 }
 
 export async function cancelLeaveRequestAction(formData: FormData) {

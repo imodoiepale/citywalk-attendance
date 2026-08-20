@@ -32,7 +32,16 @@ const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  <tbody
+    ref={ref}
+    className={cn(
+      // Alternating rows: on a wide grid of numbers the eye loses its place
+      // between columns without them.
+      '[&_tr:last-child]:border-0 [&_tr:nth-child(even)]:bg-card-soft/60',
+      className
+    )}
+    {...props}
+  />
 ))
 TableBody.displayName = 'TableBody'
 
@@ -98,6 +107,46 @@ const TableCaption = React.forwardRef<
 ))
 TableCaption.displayName = 'TableCaption'
 
+/**
+ * Row-number cell. Tables here are read against printed rosters and payroll
+ * runs, where "row 14" is how people point at a line out loud.
+ */
+const TableRowNumber = React.forwardRef<
+  HTMLTableCellElement,
+  React.TdHTMLAttributes<HTMLTableCellElement> & { value: number }
+>(({ className, value, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn(
+      'w-10 border border-border px-2 py-1.5 text-right align-middle text-xs tabular-nums text-muted-foreground',
+      className
+    )}
+    {...props}
+  >
+    {value}
+  </td>
+))
+TableRowNumber.displayName = 'TableRowNumber'
+
+const TableRowNumberHead = React.forwardRef<
+  HTMLTableCellElement,
+  React.ThHTMLAttributes<HTMLTableCellElement>
+>(({ className, children, ...props }, ref) => (
+  <th
+    ref={ref}
+    scope="col"
+    aria-label="Row number"
+    className={cn(
+      'h-9 w-10 border border-border px-2 text-right align-middle text-xs font-semibold text-muted-foreground',
+      className
+    )}
+    {...props}
+  >
+    {children ?? '#'}
+  </th>
+))
+TableRowNumberHead.displayName = 'TableRowNumberHead'
+
 export {
   Table,
   TableHeader,
@@ -107,4 +156,6 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  TableRowNumber,
+  TableRowNumberHead,
 }

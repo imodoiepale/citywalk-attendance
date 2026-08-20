@@ -20,6 +20,7 @@ export type Permission =
   | 'attendance.correct.org'
   | 'admin.branches'
   | 'admin.settings'
+  | 'admin.devices'
 
 export type AccessLevel = 'none' | 'own' | 'branch' | 'org' | 'full'
 
@@ -61,6 +62,7 @@ export const PERMISSIONS: Permission[] = [
   'attendance.correct.org',
   'admin.branches',
   'admin.settings',
+  'admin.devices',
 ]
 
 export const PERMISSION_META: Record<Permission, { label: string; group: string }> = {
@@ -78,6 +80,7 @@ export const PERMISSION_META: Record<Permission, { label: string; group: string 
   'attendance.correct.org': { label: 'Correct punches — any branch', group: 'Attendance' },
   'admin.branches': { label: 'Manage branches', group: 'Admin' },
   'admin.settings': { label: 'Edit org settings', group: 'Admin' },
+  'admin.devices': { label: 'Manage biometric devices', group: 'Admin' },
 }
 
 function rank(level: AccessLevel): number {

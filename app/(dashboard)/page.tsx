@@ -37,7 +37,7 @@ export default async function DashboardPage({
   ])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 px-4 py-4 sm:space-y-8 sm:py-8">
+    <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 sm:space-y-6 sm:py-6">
       {errorMessage ? (
         <div className="mx-auto flex max-w-md items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground">
           <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />

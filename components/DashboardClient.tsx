@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from 'react'
 import TimeDial from './TimeDial'
+import ClockHeader from './ClockHeader'
 import ClockInOutCard from './ClockInOutCard'
 import TodaySummary, { type DashboardSummary } from './TodaySummary'
 import { useTodayShiftClock } from '@/lib/useShiftClock'
@@ -51,6 +52,7 @@ export default function DashboardClient({
 
   return (
     <>
+      <ClockHeader nowSeconds={nowSeconds} />
       <TimeDial
         isClockedIn={isClockedIn}
         todaySeconds={todaySeconds}

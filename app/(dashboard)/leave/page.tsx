@@ -1,25 +1,37 @@
-import Link from 'next/link'
 import { requirePermission } from '@/lib/auth'
-import { getMyLeaveRequests } from '@/lib/leave/queries'
-import { buttonVariants } from '@/components/ui/button'
+import { canAtLeast } from '@/lib/rbac-catalog'
+import { getBranchStaff, getMyLeaveRequests } from '@/lib/leave/queries'
 import LeaveRequestList from '@/components/leave/LeaveRequestList'
+import RequestLeaveDialog from '@/components/leave/RequestLeaveDialog'
 
 export default async function MyLeavePage() {
   const user = await requirePermission('leave.request.own', 'own')
-  const requests = await getMyLeaveRequests(user.id)
+
+  // The on-behalf picker's data has to be resolved here: getBranchStaff is
+  // server-only, so the dialog (a Client Component) cannot fetch it itself.
+  const canFileOnBehalf = canAtLeast(user.permissions, user.role, 'leave.request.on_behalf', 'branch')
+  const orgWide = canAtLeast(user.permissions, user.role, 'leave.request.on_behalf', 'org')
+
+  const [requests, staffOptions] = await Promise.all([
+    getMyLeaveRequests(user.id),
+    canFileOnBehalf ? getBranchStaff(user.branchId, orgWide) : Promise.resolve([]),
+  ])
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto max-w-3xl space-y-4 px-4 py-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-foreground">My leave</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-lg font-bold text-foreground sm:text-xl">My leave</h1>
+          <p className="text-xs text-muted-foreground">
             Requests you&rsquo;ve made, or that were filed on your behalf.
           </p>
         </div>
-        <Link href="/leave/new" className={buttonVariants()}>
-          Request leave
-        </Link>
+        <RequestLeaveDialog
+          currentUserId={user.id}
+          currentUserName={user.fullName}
+          canFileOnBehalf={canFileOnBehalf}
+          staffOptions={staffOptions}
+        />
       </div>
       <LeaveRequestList requests={requests} currentUserId={user.id} showCancel />
     </div>

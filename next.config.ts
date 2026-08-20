@@ -1,7 +1,23 @@
 import type { NextConfig } from "next";
 import withPWA from "@ducanh2912/next-pwa";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  experimental: {
+    // Client-side router cache. Without it `dynamic` defaults to 0s, so every
+    // return to an already-visited route re-renders on the server and pays the
+    // ~370ms round trip to eu-west-1 again — which is what made moving between
+    // screens feel like a reload.
+    //
+    // 15s, not the 30s example default: this app shows punch and leave data,
+    // and stale numbers on a timesheet are worse than a short wait. Every
+    // mutating action already calls revalidatePath, which evicts the entry, so
+    // a stale read is only possible on a route nothing has changed.
+    staleTimes: {
+      dynamic: 15,
+      static: 180,
+    },
+  },
+};
 
 export default withPWA({
   dest: "public",
