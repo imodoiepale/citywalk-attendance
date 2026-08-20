@@ -31,6 +31,15 @@ The full documentation set for Citywalk Attendance — a signed-in, multi-branch
 
 ## The decisions already made
 
+### For approval and sign-off
+
+- [`07-SYSTEM-PROPOSAL.md`](./07-SYSTEM-PROPOSAL.md) — the case for the system: the
+  problem, the approach, what is live, what is proposed (audit log, report
+  builder, AI face cameras), the risks, and what Citywalk must supply.
+- [`08-REQUIREMENTS.md`](./08-REQUIREMENTS.md) — every requirement, numbered, with
+  its status and the automated check that proves it. Open blockers are listed at
+  the end.
+
 1. This app gets its **own** Supabase project — not shared with the DMS's database.
 2. Roles and rights are **database-backed and admin-editable**, not hardcoded — a direct product requirement.
 3. Sign-up is **self-service**, collects a branch choice, and accounts are **active immediately** — no approval gate.

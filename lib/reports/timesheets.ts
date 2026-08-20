@@ -1,7 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { toNairobiDateKey } from '@/lib/timezone'
-import { DAILY_TARGET_HOURS } from '@/lib/targets'
+import { getSettings } from '@/lib/settings'
 
 // One shared timesheet shape, rendered identically by the on-screen table and
 // by all three export formats. Anything that changes the numbers changes them
@@ -83,6 +83,14 @@ export async function loadTimesheet(options: {
 }): Promise<Timesheet> {
   const supabase = await createClient()
 
+  // The daily target has to come from app_settings, not the compiled-in
+  // constant. Reading the constant meant changing the target at /admin/settings
+  // moved the dial and the calendar but left this overtime column on the old
+  // value — a payroll number silently disagreeing with the setting that is
+  // supposed to govern it.
+  const settings = await getSettings()
+  const dailyTargetHours = settings.dailyTargetHours
+
   // Profiles first, so someone who worked zero hours in the period still
   // appears as a row of blanks rather than silently vanishing from payroll.
   let profileQuery = supabase
@@ -138,7 +146,7 @@ export async function loadTimesheet(options: {
       if (hours > 0) daysWorked += 1
       // Overtime is per-day: nine hours on Monday is an hour of overtime even
       // if the week ends under target.
-      if (hours > DAILY_TARGET_HOURS) overtimeHours += hours - DAILY_TARGET_HOURS
+      if (hours > dailyTargetHours) overtimeHours += hours - dailyTargetHours
     }
 
     return {
