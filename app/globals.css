@@ -118,11 +118,21 @@
 }
 
 :root {
-  --chart-1: #0ca30c;
-  --chart-2: #4a3aa7;
-  --chart-3: #eda100;
-  --chart-4: #2a78d6;
-  --chart-5: #d03b3b;
+  /* Categorical series colours. Ordered so the first two — the pair a reader
+     compares most often — are the most separable, and so the sequence stays
+     distinguishable under the common forms of colour blindness. Deliberately
+     tuned per theme: a single set legible on near-white goes muddy on
+     near-black, and these carry meaning, so "close enough" is not enough. */
+  --chart-1: #b58b00;
+  --chart-2: #2a78d6;
+  --chart-3: #1fa85b;
+  --chart-4: #d03b3b;
+  --chart-5: #6b4fbb;
+  --chart-6: #c2620e;
+
+  /* Non-categorical roles, so a chart never has to reach for a raw hex. */
+  --chart-grid: rgba(28, 26, 22, 0.09);
+  --chart-axis: #6b7278;
 
   --radius-xs: 0.5rem;
   --radius-sm: 0.625rem;
@@ -131,6 +141,18 @@
   --radius-xl: 1.375rem;
 
   --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark {
+  --chart-1: #ffd000;
+  --chart-2: #5aa9ff;
+  --chart-3: #3ddc84;
+  --chart-4: #ff6b6b;
+  --chart-5: #a48bff;
+  --chart-6: #ff9f45;
+
+  --chart-grid: rgba(255, 255, 255, 0.09);
+  --chart-axis: #a9adb2;
 }
 
 @theme inline {
@@ -175,6 +197,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
 
   --radius-xs: var(--radius-xs);
   --radius-sm: var(--radius-sm);

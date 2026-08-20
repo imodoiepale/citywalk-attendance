@@ -193,6 +193,14 @@ try {
     '/leave/approvals',
     '/reports',
     '/reports/timesheets',
+    '/reports/builder',
+    // Each chart type is a separate render path, and a bad one throws at
+    // draw time rather than at build time.
+    '/reports/builder?dataset=leave&groupBy=type&chart=donut',
+    '/reports/builder?dataset=hours&groupBy=week&chart=line',
+    '/reports/builder?dataset=leave&groupBy=branch&chart=stacked&splitBy=type',
+    '/reports/builder?dataset=devices&groupBy=health&chart=bar',
+    '/reports/builder?dataset=audit&groupBy=action&chart=table',
     '/attendance/corrections',
     '/me',
     '/admin/users',

@@ -10,7 +10,6 @@
 // day lands in exactly one bucket, and that weeks start Monday because a
 // payroll week is a working week.
 
-import assert from 'node:assert/strict'
 import { GRANULARITIES, groupKeysFor, bucketHours } from '../lib/reports/grouping.ts'
 
 let failures = 0

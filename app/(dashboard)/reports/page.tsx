@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { TableProperties } from 'lucide-react'
+import { ChartColumnBig, TableProperties } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { canAtLeast } from '@/lib/rbac-catalog'
 import { loadAttendanceAnalytics } from '@/lib/reports/analytics'
@@ -44,13 +44,22 @@ export default async function ReportsPage({
               — last {days} days.
             </p>
           </div>
-          <Link
-            href="/reports/timesheets"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/85"
-          >
-            <TableProperties className="h-4 w-4" />
-            Timesheets &amp; export
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/reports/builder"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-card-hover"
+            >
+              <ChartColumnBig className="h-4 w-4" />
+              Build a report
+            </Link>
+            <Link
+              href="/reports/timesheets"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/85"
+            >
+              <TableProperties className="h-4 w-4" />
+              Timesheets &amp; export
+            </Link>
+          </div>
         </div>
         <HoursByBranchTable
           rows={analytics.hoursByBranch}

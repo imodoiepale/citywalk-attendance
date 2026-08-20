@@ -137,6 +137,12 @@ export const NAV: NavItem[] = [
     match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
   },
   {
+    href: '/reports/builder',
+    label: 'Report builder',
+    priority: 8,
+    match: (p, r) => canAtLeast(p, r, 'report.view.branch', 'branch') || canAtLeast(p, r, 'report.view.org', 'org'),
+  },
+  {
     href: '/admin/users',
     label: 'Admin',
     priority: 8,

@@ -88,6 +88,7 @@ const PAGES = [
   '/admin/devices/unmatched',
   '/admin/settings',
   '/admin/audit',
+  '/reports/builder?dataset=leave&groupBy=branch&chart=table',
 ]
 
 let userId = null
