@@ -31,13 +31,23 @@ Checklist:
 ## Rotating credentials
 
 - **Supabase anon/service-role keys**: rotate in the Supabase dashboard (Project Settings → API), then update the env var everywhere it's set (local `.env.local`, hosting provider). The anon key is public by design (it's shipped to the browser) — rotating it doesn't require notifying anyone, just redeploying.
-- **A user's password**: no forgot-password flow exists in the app UI yet — reset via the Supabase Auth dashboard (Authentication → Users → the account → Send password recovery, or set a new password directly) until one is built.
+- **A user's password**: they can self-serve from **Forgot password?** on the sign-in page, which emails a link to `/callback`, which establishes a session and drops them on `/set-password`.
+  - This depends on email actually being delivered. The project has **no custom SMTP configured**, so it falls back to Supabase's built-in sender, which is rate-limited to a handful of messages an hour and is not intended for production. Configure SMTP (Authentication → Emails → SMTP Settings) before relying on this.
+  - To reset someone without email at all: Supabase Dashboard → Authentication → Users → the account → *Generate link* (recovery), then hand them the link directly. `/callback` accepts both the `token_hash` form those links use and the PKCE `code` form the in-app flow produces.
 
 ## Restore / rollback
 
 No automated backup/restore tooling exists beyond whatever your Supabase plan provides (Supabase's own point-in-time recovery on paid tiers, or manual `pg_dump` you set up yourself). Before any destructive change (a manual `UPDATE`/`DELETE` in the Table Editor, a new migration), export the affected table first: Supabase Table Editor → table → Export as CSV.
 
 To roll back a bad migration: there's no down-migration tooling set up — `supabase/migrations/` is append-only today. Fixing a mistake means writing a new corrective migration, not editing or reverting the original file, once it's been applied to a real project.
+
+## Redirect URLs
+
+Auth links only redirect to hosts on the allow list (Authentication → URL
+Configuration). `site_url` and `uri_allow_list` currently cover
+`http://localhost:3000` and `http://localhost:3101`. **Add the production
+domain there before go-live**, or every reset and confirmation link will bounce
+users to localhost.
 
 ## Applying a migration
 

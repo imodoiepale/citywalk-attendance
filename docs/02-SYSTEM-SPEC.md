@@ -103,6 +103,7 @@ Every table has RLS enabled (migration section 6). Pattern: a self-row clause (`
 3. `app/proxy.ts` (Next 16's `middleware.ts` rename) calls `updateSession()` on every request, which does a verified `supabase.auth.getUser()` call and redirects unauthenticated requests to `/login?next=<path>` for anything outside a public-prefix allowlist.
 4. `app/(dashboard)/layout.tsx` calls `requireUser()`, which also checks `is_active` and redirects deactivated accounts back to `/login?error=deactivated`.
 5. `requirePermission(permission, minLevel)` builds on `requireUser()` for pages that need more than "signed in" — e.g. `/reports`, `/admin/users`.
+6. Password recovery: `/forgot-password` → `resetPasswordForEmail` → emailed link → `/callback` verifies and sets the session cookie → `/set-password` calls `updateUser({ password })`. `updateUser` only ever targets the current session's user, so the flow cannot be aimed at another account. The "reset sent" notice is shown whether or not the address exists, to avoid leaking which emails have accounts.
 
 Hiding UI is **not** the security boundary — RLS is. `requireUser()`/`requirePermission()` only avoid rendering a door the user can't actually open; every table-level check above is enforced independently of what the app renders.
 
@@ -111,6 +112,9 @@ Hiding UI is **not** the security boundary — RLS is. `requireUser()`/`requireP
 | Route | Access |
 |---|---|
 | `/login`, `/signup` | Public |
+| `/forgot-password` | Public — requests a reset link |
+| `/callback` | Public by necessity: it is where a reset/confirmation link lands, and establishing the session is its whole job. Accepts `token_hash`+`type` (verifyOtp, used by email templates and admin-generated links) or `code` (PKCE, used by in-app resets). Redirects only to same-origin paths, so it cannot be used as an open redirect. |
+| `/set-password` | Requires the session `/callback` just created; bounces to `/login` without one |
 | `/` | Any active user — the dial + clock in/out |
 | `/calendar` | Any active user — own daily hours |
 | `/leave` | Any active user — own leave requests |
