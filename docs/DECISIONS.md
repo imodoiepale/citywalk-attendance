@@ -163,3 +163,34 @@ hypothetical — it happened on this network and blocked the build outright.
 `@fontsource-variable/inter`. Same typeface, still preloaded and self-hosted the
 way `next/font/google` would have served it anyway, minus the network
 dependency. Builds are hermetic.
+
+## 2026-08-20 — Client components get plain nav data, never NavItem
+
+`AppShell` handed `NavItem[]` straight to `MobileTabBar` and `MobileTopNav`.
+`NavItem` carries `match`, a predicate function, and functions cannot cross the
+server/client boundary — so React threw "Functions cannot be passed directly to
+Client Components" from `DashboardLayout`, which wraps everything. Every
+signed-in page 500'd.
+
+`toClientNav()` now projects the serializable half (`href`, `label`, and a
+pre-resolved `exact`) before anything reaches a client component. Resolving
+`exact` on the server also means the client no longer needs the sibling list to
+work out which link is active.
+
+The lesson worth keeping is about the testing, not the types: this survived
+because `verify:live` only ever talks to Supabase's API and the page smoke
+checks were unauthenticated, so both saw green while every real page was broken.
+`npm run verify:pages` closes that gap by rendering each route as a signed-in
+admin.
+
+## 2026-08-20 — suppressHydrationWarning stops at <body>
+
+Browser extensions rewrite the document before React hydrates — observed here:
+`cz-shortcut-listen` and `contenteditable` on `<body>` from ColorZilla, and
+`aria-autocomplete` on password inputs from a password manager. Those
+mismatches are unfixable from application code, so `<body>` joins `<html>` in
+suppressing them.
+
+It is deliberately not pushed any deeper. Inside the app a hydration mismatch is
+our own bug and should stay loud; silencing it on, say, the `Input` primitive
+would hide real ones for the sake of an extension.

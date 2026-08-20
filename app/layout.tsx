@@ -75,7 +75,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <link rel="icon" href="/logo-mark.png" type="image/png" />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* suppressHydrationWarning here for the same reason it is on <html>:
+          browser extensions inject attributes into these two elements before
+          React hydrates. Observed in the wild on this app: cz-shortcut-listen
+          (ColorZilla) and contenteditable on <body>, and aria-autocomplete on
+          password fields from password managers. Those mismatches are noise we
+          cannot fix from here. It is deliberately NOT applied any deeper —
+          inside the app a mismatch is our bug and should stay loud. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

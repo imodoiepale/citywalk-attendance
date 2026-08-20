@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { isExactNav, type NavItem } from '@/lib/rbac-catalog'
+import type { ClientNavItem } from '@/lib/rbac-catalog'
 
 /**
  * Secondary nav row under the mobile header. The bottom tab bar holds the four
@@ -11,7 +11,7 @@ import { isExactNav, type NavItem } from '@/lib/rbac-catalog'
  * anything in the "More" overflow is still reachable in one tap. It scrolls
  * horizontally rather than wrapping, keeping the header a fixed height.
  */
-export default function MobileTopNav({ nav }: { nav: NavItem[] }) {
+export default function MobileTopNav({ nav }: { nav: ClientNavItem[] }) {
   const pathname = usePathname()
 
   return (
@@ -20,8 +20,7 @@ export default function MobileTopNav({ nav }: { nav: NavItem[] }) {
       className="flex gap-1.5 overflow-x-auto border-b border-border bg-background/80 px-3 py-2 backdrop-blur-sm [-ms-overflow-style:none] [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden"
     >
       {nav.map((item) => {
-        const exact = isExactNav(nav, item.href)
-        const isActive = exact ? pathname === item.href : pathname.startsWith(item.href)
+        const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href)
         return (
           <Link
             key={item.href}

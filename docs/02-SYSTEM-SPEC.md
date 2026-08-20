@@ -134,4 +134,19 @@ Hiding UI is **not** the security boundary — RLS is. `requireUser()`/`requireP
 
 ## Testing strategy
 
+Two scripts, both safe to run against the live project — each provisions a
+throwaway user and deletes it in a `finally` block:
+
+| Script | Covers |
+|---|---|
+| `npm run verify:live` | Auth + RLS over the raw API: signup trigger, `my_permissions()`, clock in/out, and the boundaries that matter (impersonation, self role escalation, cross-branch reads, settings writes). |
+| `npm run verify:pages` | Renders every authenticated route as a signed-in admin and asserts 200, plus the custom 404. Needs the dev server running. |
+
+Note what each does **not** cover: `verify:live` never renders a Next page, and
+unauthenticated checks only see the redirect to `/login`. Between those two
+blind spots a server error on every signed-in page went unnoticed — which is
+why `verify:pages` exists.
+
+## Legacy testing notes
+
 No automated test suite exists yet (matches the app's current scale — this is a small internal tool, not worth a full CI pipeline before real usage validates the shape of the schema). Verification today is: `npm run build` and `npm run lint` clean; manual read-through of the migration for RLS/RPC consistency (each policy and RPC checked against what it's supposed to prevent). Before go-live, at minimum: manually walk each role through its own screens (see [`06-GO-LIVE-CHECKLIST.md`](./06-GO-LIVE-CHECKLIST.md)), and confirm a `staff` role genuinely cannot read another branch's punches/leave via direct API calls (not just that the UI doesn't show a link to them).

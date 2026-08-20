@@ -3,12 +3,18 @@ import NavLink from './NavLink'
 import UserMenu from './UserMenu'
 import MobileTabBar from './MobileTabBar'
 import MobileTopNav from './MobileTopNav'
-import { isExactNav, navFor, splitNavForMobile } from '@/lib/rbac-catalog'
+import { isExactNav, navFor, splitNavForMobile, toClientNav } from '@/lib/rbac-catalog'
 import type { CurrentUser } from '@/lib/auth'
 
 export default function AppShell({ user, children }: { user: CurrentUser; children: React.ReactNode }) {
   const nav = navFor(user.permissions, user.role)
   const { tabs, overflow } = splitNavForMobile(nav)
+  // NavItem carries a `match` function, which cannot be serialized across the
+  // server/client boundary — strip it before handing the nav to any client
+  // component.
+  const clientTabs = toClientNav(tabs)
+  const clientOverflow = toClientNav(overflow)
+  const clientNav = toClientNav(nav)
 
   return (
     <div className="min-h-screen bg-background md:flex">
@@ -53,13 +59,13 @@ export default function AppShell({ user, children }: { user: CurrentUser; childr
 
         {/* Every destination, including anything behind the bottom bar's "More". */}
         <div className="sticky top-[3.25rem] z-10 md:hidden">
-          <MobileTopNav nav={nav} />
+          <MobileTopNav nav={clientNav} />
         </div>
 
         <main className="flex-1 pb-24 md:pb-0">{children}</main>
 
         {/* Mobile bottom tab bar — branch devices are often phones/tablets */}
-        <MobileTabBar tabs={tabs} overflow={overflow} />
+        <MobileTabBar tabs={clientTabs} overflow={clientOverflow} />
       </div>
     </div>
   )

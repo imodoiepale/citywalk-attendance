@@ -72,6 +72,18 @@ npm run verify:live
 It creates a throwaway user, walks signup → clock in → clock out, probes the RLS
 boundaries, and deletes the user in a `finally` block. Safe against production.
 
+After any change to the shell, layout or a page, run (with the dev server up):
+
+```
+npm run verify:pages
+```
+
+It signs a throwaway admin in through `/callback` and renders every
+authenticated route, asserting 200. This is the check that catches server
+errors on signed-in pages — `verify:live` talks to Supabase's API and never
+renders a page, and an unauthenticated curl only ever sees the redirect to
+`/login`. That gap once hid a 500 on **every** signed-in page.
+
 ## Escalation
 
 This is a small internal tool with no on-call rotation defined. For now: the person who ran the go-live checklist is the first point of contact for anything not covered above.

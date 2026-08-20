@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { MoreHorizontal, X } from 'lucide-react'
 import NavLink from './NavLink'
 import { cn } from '@/lib/utils'
-import { isExactNav, type NavItem } from '@/lib/rbac-catalog'
+import type { ClientNavItem } from '@/lib/rbac-catalog'
 
 /**
  * Bottom tab bar for phones. Anything past the tab slots goes behind "More"
@@ -18,12 +18,11 @@ export default function MobileTabBar({
   tabs,
   overflow,
 }: {
-  tabs: NavItem[]
-  overflow: NavItem[]
+  tabs: ClientNavItem[]
+  overflow: ClientNavItem[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
-  const allNav = [...tabs, ...overflow]
   const overflowActive = overflow.some((item) => pathname.startsWith(item.href))
 
   return (
@@ -50,12 +49,7 @@ export default function MobileTabBar({
             </div>
             <div className="flex flex-col gap-1" onClick={() => setIsOpen(false)}>
               {overflow.map((item) => (
-                <NavLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  exact={isExactNav(allNav, item.href)}
-                />
+                <NavLink key={item.href} href={item.href} label={item.label} exact={item.exact} />
               ))}
             </div>
           </div>
@@ -69,7 +63,7 @@ export default function MobileTabBar({
             href={item.href}
             label={item.label}
             variant="tab"
-            exact={isExactNav(allNav, item.href)}
+            exact={item.exact}
           />
         ))}
 

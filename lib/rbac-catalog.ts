@@ -158,6 +158,27 @@ export function isExactNav(nav: NavItem[], href: string): boolean {
   return nav.some((item) => item.href !== href && item.href.startsWith(`${href}/`))
 }
 
+/**
+ * The serializable half of a NavItem. `match` is a function and `NavItem`
+ * therefore cannot cross the server/client boundary at all — passing one to a
+ * Client Component throws "Functions cannot be passed directly to Client
+ * Components" and takes down every authenticated page. Client-side nav takes
+ * this instead, with `exact` already resolved on the server.
+ */
+export interface ClientNavItem {
+  href: string
+  label: string
+  exact: boolean
+}
+
+export function toClientNav(nav: NavItem[]): ClientNavItem[] {
+  return nav.map((item) => ({
+    href: item.href,
+    label: item.label,
+    exact: isExactNav(nav, item.href),
+  }))
+}
+
 /** How many nav items the mobile tab bar shows before overflowing into "More". */
 export const MOBILE_TAB_SLOTS = 4
 
