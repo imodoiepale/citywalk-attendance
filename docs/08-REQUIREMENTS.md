@@ -132,19 +132,21 @@ automated check that proves it. Proposal context is in
 | H11 | Installable as a PWA; sessions are cookie-based so a shared device does not leak between users. | ✅ | M |
 | H12 | Signing out asks for confirmation. | ✅ | M |
 
-## I. Face recognition (proposed)
+## I. Face recognition
+
+*Built and verified. Awaiting camera configuration: the cameras must be pointed at the ingest endpoint and `confirm_face_enrollment` called with the id they issue.*
 
 | # | Requirement | Status | Check |
 |---|---|---|---|
-| I1 | Staff upload their own enrolment photo from their profile. | 📋 | — |
-| I2 | Consent is a stored record with timestamp and version. **No consent record, no enrolment** — enforced in the database. | 📋 | — |
-| I3 | Photos are stored privately, readable only by the owner and device administrators. | 📋 | — |
-| I4 | **No face templates are ever computed or stored by this system.** The camera holds them and returns only a matched person ID. | 📋 | — |
-| I5 | Revocation purges the stored photo, deprovisions the camera enrolment, and writes an audit entry. | 📋 | — |
-| I6 | A configurable retention period and re-enrolment interval. | 📋 | — |
-| I7 | A match below the configured confidence threshold is not treated as an identification. | 📋 | — |
-| I8 | Face cameras reuse the device model, including purpose — a camera on a restricted door logs access without clocking anyone in. | 📋 | — |
-| I9 | An enrolment roster showing who has a face on file and who does not. | 📋 | — |
+| I1 | Staff upload their own enrolment photo from their profile. | ✅ | P |
+| I2 | Consent is a stored record with timestamp and version. **No consent record, no enrolment** — enforced by a NOT NULL column, not a checkbox. | ✅ | S |
+| I3 | Photos are stored in a private bucket, readable only by the owner and device administrators. | ✅ | S |
+| I4 | **No face templates are ever computed or stored by this system.** The camera holds them and returns only a matched person ID, which becomes an ordinary enrollment mapping. | ✅ | S |
+| I5 | Revocation returns the object key so the photo is actually deleted, clears the reference, and writes an audit entry. The consent record survives as the evidence of what was held. | ✅ | S |
+| I6 | A configurable retention period and re-enrolment interval. | ✅ | M |
+| I7 | A configurable confidence threshold below which a match is not an identification. *(Stored and surfaced; enforced once a camera is connected.)* | 🟡 | M |
+| I8 | Face cameras reuse the device model, including purpose — a camera on a restricted door logs access without clocking anyone in. | ✅ | B |
+| I9 | An enrolment roster showing who has a face on file and who does not. | ✅ | P |
 
 ## J. Non-functional
 

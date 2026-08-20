@@ -93,7 +93,7 @@ Live against the production Supabase project, with automated verification:
 | Guided tours per role, hamburger, breadcrumbs | Live |
 | Audit log | Live |
 | Report builder with charts | Proposed — §6 |
-| AI face cameras | Proposed — §7 |
+| AI face cameras | Built — awaiting camera configuration |
 
 ## 6. Proposed next
 
@@ -110,7 +110,9 @@ unmatched trend.
 
 ## 7. AI face cameras
 
-**Proposed model:** staff upload their own photo to their profile, with recorded
+*Implemented and verified; awaiting camera configuration.*
+
+**Model:** staff upload their own photo to their profile, with recorded
 consent. It is enrolled to the internally-owned cameras. The camera performs the
 matching and returns only a person ID, which flows into the same enrollment
 mapping and ingest pipeline the ZKTeco readers already use.
@@ -130,6 +132,8 @@ Kenya's Data Protection Act 2019. This proposal therefore commits to:
 - A stated retention period, configurable, and re-enrolment interval.
 - Face cameras on restricted doors (server room, camera room) classified as
   access-control, so they log entry without ever creating a punch.
+
+**Status:** built on exactly this basis and covered by tests — consent is refused without a record, revocation deletes the photo, and the consent trail survives. What remains is Citywalk-side: point the cameras at the ingest endpoint and have them call `confirm_face_enrollment` with the id they issue.
 
 **Recommendation:** proceed, on the basis above. The alternative — holding
 templates ourselves — makes Citywalk a biometric data controller with materially

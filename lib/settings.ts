@@ -15,6 +15,11 @@ export interface AppSettings {
   approachingThresholdHours: number
   gracePeriodMinutes: number
   maxShiftHours: number
+  faceEnabled: boolean
+  faceMinConfidence: number
+  faceRetentionDays: number
+  faceReenrollDays: number
+  faceConsentVersion: string
 }
 
 /** The compiled-in values, used until the settings row is read. */
@@ -24,6 +29,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   approachingThresholdHours: APPROACHING_THRESHOLD_HOURS,
   gracePeriodMinutes: GRACE_PERIOD_MINUTES,
   maxShiftHours: MAX_SHIFT_HOURS,
+  // Face recognition is off until an administrator turns it on and the cameras
+  // are configured — the safe default for a feature that handles biometric data.
+  faceEnabled: false,
+  faceMinConfidence: 0.9,
+  faceRetentionDays: 365,
+  faceReenrollDays: 730,
+  faceConsentVersion: 'v1',
 }
 
 /**
@@ -38,7 +50,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
   const { data } = await supabase
     .from('app_settings')
     .select(
-      'daily_target_hours, weekly_target_hours, approaching_threshold_hours, grace_period_minutes, max_shift_hours'
+      'daily_target_hours, weekly_target_hours, approaching_threshold_hours, grace_period_minutes, max_shift_hours, face_enabled, face_min_confidence, face_retention_days, face_reenroll_days, face_consent_version'
     )
     .maybeSingle()
 
@@ -50,5 +62,10 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     approachingThresholdHours: Number(data.approaching_threshold_hours),
     gracePeriodMinutes: Number(data.grace_period_minutes),
     maxShiftHours: Number(data.max_shift_hours),
+    faceEnabled: Boolean(data.face_enabled),
+    faceMinConfidence: Number(data.face_min_confidence ?? 0.9),
+    faceRetentionDays: Number(data.face_retention_days ?? 365),
+    faceReenrollDays: Number(data.face_reenroll_days ?? 730),
+    faceConsentVersion: String(data.face_consent_version ?? 'v1'),
   }
 })

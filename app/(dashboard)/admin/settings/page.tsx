@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { requirePermission } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
+import { getFaceRoster } from '@/lib/face/queries'
+import FaceSettingsSection from '@/components/face/FaceSettingsSection'
 import { updateSettingsAction } from '@/lib/admin/actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -43,7 +45,7 @@ const FIELDS = [
 
 export default async function AdminSettingsPage() {
   await requirePermission('admin.settings', 'full')
-  const settings = await getSettings()
+  const [settings, roster] = await Promise.all([getSettings(), getFaceRoster()])
 
   const values: Record<string, number> = {
     dailyTargetHours: settings.dailyTargetHours,
@@ -54,7 +56,7 @@ export default async function AdminSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 px-4 py-5">
+    <div className="mx-auto max-w-4xl space-y-4 px-4 py-5">
       <div>
         <Link
           href="/admin/users"
@@ -98,6 +100,8 @@ export default async function AdminSettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      <FaceSettingsSection settings={settings} roster={roster} />
     </div>
   )
 }

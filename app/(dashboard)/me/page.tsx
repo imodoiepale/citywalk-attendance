@@ -3,6 +3,8 @@ import { requireUser } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
 import { getWeeklyHours } from '@/lib/punches/queries'
 import { getMyCorrections } from '@/lib/corrections/queries'
+import { getMyFaceEnrollment } from '@/lib/face/queries'
+import FaceEnrollmentCard from '@/components/face/FaceEnrollmentCard'
 import { ROLE_META } from '@/lib/rbac-catalog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -28,10 +30,11 @@ const STATUS_VARIANT: Record<string, 'success' | 'destructive' | 'warning' | 'se
 
 export default async function ProfilePage() {
   const user = await requireUser()
-  const [settings, weeklyHours, corrections] = await Promise.all([
+  const [settings, weeklyHours, corrections, faceEnrollment] = await Promise.all([
     getSettings(),
     getWeeklyHours(user.id),
     getMyCorrections(user.id),
+    getMyFaceEnrollment(user.id),
   ])
 
   return (
@@ -64,6 +67,13 @@ export default async function ProfilePage() {
         </CardContent>
       </Card>
 
+      <FaceEnrollmentCard
+        enabled={settings.faceEnabled}
+        enrollment={faceEnrollment}
+        consentVersion={settings.faceConsentVersion}
+        retentionDays={settings.faceRetentionDays}
+      />
+
       {/* Staff should be able to see what the system records about them —
           a stated privacy requirement, not just a nice-to-have. */}
       <Card>
@@ -77,9 +87,21 @@ export default async function ProfilePage() {
             </li>
             <li>Leave requests you file or that are filed for you, and their decisions.</li>
             <li>Any punch corrections you request, and who approved or rejected them.</li>
+            <li>
+              If your branch uses a fingerprint reader, the scans it sends and the enrolment number
+              that identifies you on it.
+            </li>
+            {settings.faceEnabled ? (
+              <li>
+                If you have added a face photo: the photo itself and your recorded consent. The face
+                data the cameras use to recognise you is held by the cameras — this app never stores
+                a face scan or template. Photos are kept for {settings.faceRetentionDays} days, and
+                removing yours deletes it.
+              </li>
+            ) : null}
           </ul>
           <p className="text-xs text-muted-foreground">
-            No location or biometric data is recorded today. Your branch manager and HR/Accounts can
+            No location data is recorded. Your branch manager and HR/Accounts can
             see your hours and leave; other staff cannot. To correct anything, open the day on your{' '}
             <Link href="/calendar" className="underline">
               calendar

@@ -97,3 +97,35 @@ export async function updateSettingsAction(formData: FormData) {
   // Targets feed the dial, the calendar and every report.
   revalidatePath('/', 'layout')
 }
+
+export async function updateFaceSettingsAction(formData: FormData) {
+  await requireUser()
+  const supabase = await createClient()
+
+  const num = (key: string, fallback: number) => {
+    const raw = String(formData.get(key) ?? '').trim()
+    const value = Number(raw)
+    return Number.isFinite(value) ? value : fallback
+  }
+
+  // Written directly rather than through a dedicated RPC: admin_update_settings
+  // owns the hour targets and adding five more parameters to it would make a
+  // face change look like a targets change in the audit trail.
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      face_enabled: formData.get('face_enabled') === 'on',
+      face_min_confidence: num('face_min_confidence', 0.9),
+      face_retention_days: Math.round(num('face_retention_days', 365)),
+      face_reenroll_days: Math.round(num('face_reenroll_days', 730)),
+      face_consent_version: String(formData.get('face_consent_version') ?? 'v1').trim() || 'v1',
+      updated_by_id: (await supabase.auth.getUser()).data.user?.id ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', true)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/settings')
+  revalidatePath('/me')
+}
