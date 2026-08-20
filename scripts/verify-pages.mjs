@@ -202,6 +202,7 @@ try {
     '/admin/devices',
     '/admin/devices/enrollments',
     '/admin/devices/unmatched',
+    '/admin/audit',
   ]
 
   for (const route of routes) {

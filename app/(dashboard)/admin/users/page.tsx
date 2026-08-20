@@ -49,6 +49,12 @@ export default async function AdminUsersPage() {
               Devices
             </Link>
           ) : null}
+          <Link
+            href="/admin/audit"
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            Audit log
+          </Link>
           {canSettings ? (
             <Link
               href="/admin/settings"

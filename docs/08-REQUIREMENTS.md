@@ -107,11 +107,13 @@ automated check that proves it. Proposal context is in
 
 | # | Requirement | Status | Check |
 |---|---|---|---|
-| G1 | Every privileged action records actor, action, entity, and before/after. | 📋 | — |
-| G2 | The actor's name is denormalised, so history survives that person's deletion. | 📋 | — |
-| G3 | Device-originated actions record `source = device` with no actor, not an anonymous user. | 📋 | — |
-| G4 | The audit log is searchable and filterable by entity, actor and date. | 📋 | — |
+| G1 | Every privileged action records actor, action, entity, and before/after. | ✅ | S |
+| G2 | The actor's name is denormalised, so history survives that person's deletion. | ✅ | S |
+| G3 | Device-originated actions record `source = device`/`system` with no actor, not an anonymous user. | ✅ | S |
+| G4 | The audit log is searchable and filterable by entity, actor and date, with an expandable before/after diff. | ✅ | P |
 | G5 | Leave and correction decisions already carry actor and timestamp. | ✅ | S |
+| G6 | The log is append-only: no insert, update or delete policy exists, so writes happen only through the security-definer writer. | ✅ | S |
+| G7 | Readable by admins only — an audit trail names who did what to whom. | ✅ | S |
 
 ## H. Navigation, onboarding and accessibility
 

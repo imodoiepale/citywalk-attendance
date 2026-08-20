@@ -91,16 +91,18 @@ Live against the production Supabase project, with automated verification:
 | ZKTeco ingest (push, webhook, pull) + device health | Live, awaiting device configuration |
 | Device, enrollment and unmatched-scan management | Live |
 | Guided tours per role, hamburger, breadcrumbs | Live |
-| Audit log | Proposed — §6 |
+| Audit log | Live |
 | Report builder with charts | Proposed — §6 |
 | AI face cameras | Proposed — §7 |
 
 ## 6. Proposed next
 
-**Audit log.** Several privileged actions currently record no actor at all — you
-cannot presently tell who granted a permission. Proposed: one `audit_log`
-capturing actor, action, entity and before/after for every privileged operation,
-with the actor's name denormalised so history survives that person being deleted.
+**Audit log — now delivered.** Several privileged actions previously recorded no
+actor at all; you could not tell who granted a permission. `audit_log` now
+captures actor, action, entity and before/after for every privileged operation,
+with the actor's name denormalised so history survives that person being deleted,
+and a `source` discriminator so machine actions read as machine actions rather
+than anonymous users. It is append-only and admin-readable.
 
 **Report builder.** Choose a dataset, grouping, period and visualisation; save it
 as a named preset. Includes device-estate reporting: uptime, scans per branch,
