@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth'
 import { canAtLeast } from '@/lib/rbac-catalog'
-import { getApprovalQueue } from '@/lib/leave/queries'
-import LeaveRequestList from '@/components/leave/LeaveRequestList'
+import { getAllApprovals } from '@/lib/leave/queries'
+import ApprovalsTable from '@/components/leave/ApprovalsTable'
 
 export default async function LeaveApprovalsPage() {
   const user = await requireUser()
@@ -16,17 +16,22 @@ export default async function LeaveApprovalsPage() {
     redirect('/?error=forbidden')
   }
 
-  const requests = await getApprovalQueue(user.branchId, orgWide)
+  // Every status, not just pending: "what did we decide last month" is as real
+  // a question as "what needs me today", and the tab counts have to come from
+  // the same fetch as the rows or they would disagree.
+  const requests = await getAllApprovals(user.branchId, orgWide)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-5">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Leave approvals</h1>
-        <p className="text-sm text-muted-foreground">
-          {orgWide ? 'Pending requests across every branch.' : `Pending requests for ${user.branchName}.`}
+        <h1 className="text-lg font-bold text-foreground sm:text-xl">Leave approvals</h1>
+        <p className="text-xs text-muted-foreground">
+          {orgWide ? 'Every branch' : user.branchName} ·{' '}
+          {requests.filter((r) => r.status === 'pending').length} awaiting a decision.
         </p>
       </div>
-      <LeaveRequestList requests={requests} currentUserId={user.id} showApprovalActions />
+
+      <ApprovalsTable requests={requests} canDecide />
     </div>
   )
 }

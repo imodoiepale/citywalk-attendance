@@ -2,8 +2,13 @@ import { AlertTriangle } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { canAtLeast } from '@/lib/rbac-catalog'
 import { getTodaysPunches, getWeeklyHours } from '@/lib/punches/queries'
-import { countApprovalQueue, countMyPendingLeave } from '@/lib/leave/queries'
+import {
+  countApprovalQueue,
+  countMyPendingLeave,
+  getUnseenLeaveDecisions,
+} from '@/lib/leave/queries'
 import DashboardClient from '@/components/DashboardClient'
+import LeaveDecisionAnnouncer from '@/components/leave/LeaveDecisionAnnouncer'
 import { hoursToSeconds } from '@/lib/targets'
 import { getSettings } from '@/lib/settings'
 
@@ -26,7 +31,8 @@ export default async function DashboardPage({
   const canApproveOrg = canAtLeast(user.permissions, user.role, 'leave.approve.org', 'org')
   const canApproveBranch = canAtLeast(user.permissions, user.role, 'leave.approve.branch', 'branch')
 
-  const [settings, punches, weekHours, pendingLeaveCount, awaitingApprovalCount] = await Promise.all([
+  const [settings, punches, weekHours, pendingLeaveCount, awaitingApprovalCount, unseenDecisions] =
+    await Promise.all([
     getSettings(),
     getTodaysPunches(user.id),
     getWeeklyHours(user.id),
@@ -34,10 +40,14 @@ export default async function DashboardPage({
     canApproveOrg || canApproveBranch
       ? countApprovalQueue(user.branchId, canApproveOrg)
       : Promise.resolve(null),
+    getUnseenLeaveDecisions(user.id),
   ])
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 sm:space-y-6 sm:py-6">
+      {/* Renders nothing; fires the toast and confetti for decisions made
+          while this person was away. */}
+      <LeaveDecisionAnnouncer decisions={unseenDecisions} />
       {errorMessage ? (
         <div className="mx-auto flex max-w-md items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground">
           <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />

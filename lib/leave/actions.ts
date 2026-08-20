@@ -103,3 +103,16 @@ export async function decideLeaveRequestAction(formData: FormData) {
   revalidatePath('/leave/approvals')
   revalidatePath('/leave')
 }
+
+/**
+ * Marks the caller's decided leave as seen. Called once the dashboard has
+ * actually shown the toast, so a decision cannot be announced twice — or
+ * silently swallowed if the page never rendered.
+ */
+export async function acknowledgeLeaveDecisionsAction(): Promise<void> {
+  await requireUser()
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('acknowledge_leave_decisions')
+  if (error) throw new Error(error.message)
+  revalidatePath('/')
+}

@@ -8,6 +8,7 @@ export interface LeaveRequestRecord {
   filedById: string
   filedByName: string
   branchId: string
+  branchName: string
   type: string
   startDate: string
   endDate: string
@@ -24,7 +25,8 @@ const SELECT = `
   reason, status, decided_at, decision_note, created_at,
   requester:profiles!leave_requests_requester_id_fkey(full_name),
   filed_by:profiles!leave_requests_filed_by_id_fkey(full_name),
-  decided_by:profiles!leave_requests_decided_by_id_fkey(full_name)
+  decided_by:profiles!leave_requests_decided_by_id_fkey(full_name),
+  branch:branches!leave_requests_branch_id_fkey(name)
 `
 
 type NameEmbed = { full_name: string } | { full_name: string }[] | null
@@ -50,6 +52,7 @@ interface LeaveRequestRow {
   requester: NameEmbed
   filed_by: NameEmbed
   decided_by: NameEmbed
+  branch?: { name: string } | { name: string }[] | null
 }
 
 function mapRow(row: LeaveRequestRow): LeaveRequestRecord {
@@ -60,6 +63,7 @@ function mapRow(row: LeaveRequestRow): LeaveRequestRecord {
     filedById: row.filed_by_id,
     filedByName: oneName(row.filed_by) ?? 'Unknown',
     branchId: row.branch_id,
+    branchName: (Array.isArray(row.branch) ? row.branch[0]?.name : row.branch?.name) ?? 'Unknown',
     type: row.type,
     startDate: row.start_date,
     endDate: row.end_date,
@@ -183,4 +187,62 @@ export async function getLeaveOnDay(userId: string, dateKey: string) {
     .maybeSingle()
 
   return data ?? null
+}
+
+export interface DecisionToAnnounce {
+  id: string
+  type: string
+  status: string
+  startDate: string
+  endDate: string
+  decidedByName: string | null
+  decisionNote: string | null
+}
+
+/**
+ * Decisions the requester has not been shown yet.
+ *
+ * Read on every dashboard load, so it is deliberately narrow — the partial
+ * index on (requester_id) where seen_by_requester_at is null covers it.
+ */
+export async function getUnseenLeaveDecisions(userId: string): Promise<DecisionToAnnounce[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('leave_requests')
+    .select('id, type, status, start_date, end_date, decision_note, decided_by:profiles!leave_requests_decided_by_id_fkey(full_name)')
+    .eq('requester_id', userId)
+    .is('seen_by_requester_at', null)
+    .in('status', ['approved', 'rejected'])
+    .order('decided_at', { ascending: false })
+    .limit(5)
+
+  return ((data ?? []) as unknown as (LeaveRequestRow & { decided_by: NameEmbed })[]).map((row) => ({
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    decidedByName: oneName(row.decided_by),
+    decisionNote: row.decision_note,
+  }))
+}
+
+/**
+ * Every request in the approver's scope, whatever its status.
+ *
+ * The approvals screen is a table with tabs now, not just a pending queue —
+ * "what did we decide last month" is as real a question as "what needs me
+ * today", and the tab counts have to come from the same fetch or they would
+ * disagree with the rows.
+ */
+export async function getAllApprovals(
+  branchId: string,
+  orgWide: boolean
+): Promise<LeaveRequestRecord[]> {
+  const supabase = await createClient()
+  let query = supabase.from('leave_requests').select(SELECT)
+  if (!orgWide) query = query.eq('branch_id', branchId)
+
+  const { data } = await query.order('created_at', { ascending: false }).limit(2000)
+  return ((data ?? []) as unknown as LeaveRequestRow[]).map(mapRow)
 }
