@@ -51,11 +51,13 @@ export default async function AdminUsersPage() {
         </div>
       </div>
 
-      <AdminUserTable users={users} />
+      <AdminUserTable users={users} currentUserId={user.id} />
 
       <p className="text-xs text-muted-foreground">
         New accounts are created by staff signing up and choosing their branch. Deactivating an
-        account revokes access immediately without deleting its punch history.
+        account revokes access immediately without deleting its punch history. Your own row is
+        read-only, and the last active admin cannot be deactivated or demoted — otherwise nobody
+        would be left who could undo it.
       </p>
     </div>
   )

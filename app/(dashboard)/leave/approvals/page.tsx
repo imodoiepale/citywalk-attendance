@@ -3,7 +3,6 @@ import { requireUser } from '@/lib/auth'
 import { canAtLeast } from '@/lib/rbac-catalog'
 import { getApprovalQueue } from '@/lib/leave/queries'
 import LeaveRequestList from '@/components/leave/LeaveRequestList'
-import DecisionButtons from '@/components/leave/DecisionButtons'
 
 export default async function LeaveApprovalsPage() {
   const user = await requireUser()
@@ -27,11 +26,7 @@ export default async function LeaveApprovalsPage() {
           {orgWide ? 'Pending requests across every branch.' : `Pending requests for ${user.branchName}.`}
         </p>
       </div>
-      <LeaveRequestList
-        requests={requests}
-        currentUserId={user.id}
-        approvalActions={(req) => <DecisionButtons requestId={req.id} />}
-      />
+      <LeaveRequestList requests={requests} currentUserId={user.id} showApprovalActions />
     </div>
   )
 }

@@ -194,3 +194,43 @@ suppressing them.
 It is deliberately not pushed any deeper. Inside the app a hydration mismatch is
 our own bug and should stay loud; silencing it on, say, the `Input` primitive
 would hide real ones for the sake of an extension.
+
+## 2026-08-20 — An admin cannot deactivate or demote themselves
+
+/admin/users renders each account's status as a toggle button. Clicking your own
+row deactivates you, and requireUser() then bounces every request to
+/login?error=deactivated — including /admin/users itself. There is no way back
+through the UI, because the only account that could undo it is the one that just
+locked itself out. This happened to the first real admin on this project, with
+no warning and no confirmation step.
+
+Guarded in three places, deliberately:
+
+- `admin_set_active()` refuses `p_user_id = auth.uid() and p_is_active = false`.
+- Both `admin_set_active()` and `admin_set_role()` refuse to remove the last
+  active admin by any route — an org with no active admin cannot grant anyone
+  the rights to fix itself.
+- The UI renders your own row read-only and confirms before deactivating anyone
+  else.
+
+The database is the real guard; the UI change only stops the click reading as
+available. This mirrors the existing self-lockout protection on the permission
+matrix, where has_min_access() hardcodes admin to true so the matrix editor
+cannot lock every admin out.
+
+## 2026-08-20 — Latency, not query time, was the slow part
+
+Pages felt frozen on navigation. The cause was not missing indexes: measured
+round-trip latency from Nairobi to this project (eu-west-1, Ireland) is ~370ms,
+and `getCurrentUser()` spent two of those *sequentially* — a profile select
+followed by the `my_permissions()` RPC — before any page could begin rendering.
+
+`my_context()` returns profile, branch and the permission map in one call,
+cutting ~235ms off every navigation (measured). Route-level `loading.tsx`
+skeletons cover the rest: without one, Next holds the previous page on screen
+until the new one resolves, which reads as a hang rather than a load.
+
+Indexes were added anyway, and are correct, but they were never the bottleneck —
+these tables hold tens of rows. The remaining latency is geographic. If it stays
+a problem the fix is the project's region, not the code; note that Mumbai
+(ap-south-1) is roughly 2,500km closer to Nairobi than Ireland is.

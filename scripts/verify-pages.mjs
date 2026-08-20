@@ -67,6 +67,12 @@ async function visit(path, { maxHops = 5 } = {}) {
   throw new Error(`too many redirects from ${path}`)
 }
 
+// Route -> a string that only appears when its list has rows.
+const EXPECT_POPULATED = {
+  '/leave': 'verify-pages probe',
+  '/leave/approvals': 'verify-pages probe',
+}
+
 const email = `pages.${Date.now()}@invalid.test`
 let userId = null
 let failures = 0
@@ -130,6 +136,46 @@ try {
   const tokenHash = link.hashed_token ?? link.properties?.hashed_token
   assert.ok(tokenHash, 'magic link generated')
 
+  // Seed one row into every list this run will render. An empty list renders a
+  // completely different (and much simpler) tree, which is how a crash in the
+  // populated branch of /leave/approvals once slipped through a green run.
+  const svc = {
+    apikey: SERVICE,
+    Authorization: `Bearer ${SERVICE}`,
+    'Content-Type': 'application/json',
+  }
+  const today = new Date()
+  const iso = (d) => d.toISOString()
+
+  const seedLeave = await fetch(`${URL_BASE}/rest/v1/leave_requests`, {
+    method: 'POST',
+    headers: svc,
+    body: JSON.stringify({
+      requester_id: userId,
+      filed_by_id: userId,
+      branch_id: branches[0].id,
+      type: 'annual',
+      start_date: iso(today).slice(0, 10),
+      end_date: iso(new Date(today.getTime() + 86400000)).slice(0, 10),
+      reason: 'verify-pages probe',
+      status: 'pending',
+    }),
+  })
+  assert.ok(seedLeave.ok, `seeded a pending leave request (${seedLeave.status})`)
+
+  const seedPunch = await fetch(`${URL_BASE}/rest/v1/punches`, {
+    method: 'POST',
+    headers: svc,
+    body: JSON.stringify({
+      user_id: userId,
+      branch_id: branches[0].id,
+      clock_in_at: iso(new Date(today.getTime() - 5 * 3600_000)),
+      clock_out_at: iso(new Date(today.getTime() - 1 * 3600_000)),
+    }),
+  })
+  assert.ok(seedPunch.ok, `seeded a punch (${seedPunch.status})`)
+  console.log('PASS  seeded a pending leave request and a punch (so lists render populated)')
+
   const landed = await visit(`/callback?token_hash=${tokenHash}&type=magiclink`)
   assert.ok(
     [...jar.keys()].some((k) => k.startsWith('sb-')),
@@ -137,11 +183,11 @@ try {
   )
   console.log('PASS  signed in through /callback')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const todayKey = iso(today).slice(0, 10)
   const routes = [
     '/',
     '/calendar',
-    `/calendar/${today}`,
+    `/calendar/${todayKey}`,
     '/leave',
     '/leave/new',
     '/leave/approvals',
@@ -164,6 +210,11 @@ try {
     } else if (redirected && res.url.includes('/login')) {
       failures++
       console.log(`FAIL  ${route} -> bounced to login (session lost)`)
+    } else if (EXPECT_POPULATED[route] && !res.body.includes(EXPECT_POPULATED[route])) {
+      // A 200 that fell back to the empty state means the seeded row did not
+      // render, so the populated code path is still untested.
+      failures++
+      console.log(`FAIL  ${route} -> rendered empty; expected "${EXPECT_POPULATED[route]}"`)
     } else {
       console.log(`PASS  ${route}`)
     }

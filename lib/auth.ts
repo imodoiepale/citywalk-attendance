@@ -23,6 +23,27 @@ function isRole(value: string): value is Role {
 // Hiding UI is not a security control — RLS (see the migration's section 6)
 // is the real enforcement layer. getCurrentUser()/requirePermission() only
 // avoid rendering a door the user can't actually open.
+interface UserContextRow {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  job_title: string | null
+  is_active: boolean
+  branch_id: string | null
+  branch_name: string | null
+  branch_code: string | null
+  permissions: Record<string, string>
+}
+
+// Hiding UI is not a security control — RLS (see the migration's section 6)
+// is the real enforcement layer. getCurrentUser()/requirePermission() only
+// avoid rendering a door the user can't actually open.
+//
+// One RPC, not a select plus a second RPC. The layout awaits this before any
+// page renders, so an extra sequential round trip here is paid on every single
+// navigation — and at ~0.5s from Nairobi to eu-west-1 that was the single
+// largest chunk of perceived load time.
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createClient()
   const {
@@ -30,36 +51,30 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, full_name, email, role, job_title, is_active, branch:branches(id, name, code)')
-    .eq('id', user.id)
-    .single()
+  const { data } = await supabase.rpc('my_context')
+  const context = data as UserContextRow | null
+  if (!context) return null
 
-  if (!profile) return null
-
-  const branch = Array.isArray(profile.branch) ? profile.branch[0] : profile.branch
   // Defensive fallback: if the DB enum and this app's Role union ever
   // drift, default to the lowest-privilege role rather than crashing or
   // silently granting more access than intended.
-  const role: Role = isRole(profile.role) ? profile.role : 'staff'
+  const role: Role = isRole(context.role) ? context.role : 'staff'
 
-  const { data: rolePerms } = await supabase.rpc('my_permissions')
   const permissions: Partial<Record<Permission, AccessLevel>> = {}
-  for (const row of rolePerms ?? []) {
-    permissions[row.permission as Permission] = row.access_level as AccessLevel
+  for (const [permission, level] of Object.entries(context.permissions ?? {})) {
+    permissions[permission as Permission] = level as AccessLevel
   }
 
   return {
-    id: profile.id,
-    email: profile.email,
-    fullName: profile.full_name,
+    id: context.id,
+    email: context.email,
+    fullName: context.full_name,
     role,
-    jobTitle: profile.job_title,
-    isActive: profile.is_active,
-    branchId: branch?.id ?? '',
-    branchName: branch?.name ?? '',
-    branchCode: branch?.code ?? '',
+    jobTitle: context.job_title,
+    isActive: context.is_active,
+    branchId: context.branch_id ?? '',
+    branchName: context.branch_name ?? '',
+    branchCode: context.branch_code ?? '',
     permissions,
   }
 })

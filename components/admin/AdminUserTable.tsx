@@ -20,7 +20,14 @@ import type { AdminUserRow } from '@/lib/admin/queries'
 
 const PAGE_SIZE = 25
 
-export default function AdminUserTable({ users }: { users: AdminUserRow[] }) {
+export default function AdminUserTable({
+  users,
+  currentUserId,
+}: {
+  users: AdminUserRow[]
+  /** Own row is read-only — see the self-lockout guard in migration 20260820000001. */
+  currentUserId: string
+}) {
   const [isPending, startTransition] = useTransition()
   const [query, setQuery] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
@@ -142,7 +149,12 @@ export default function AdminUserTable({ users }: { users: AdminUserRow[] }) {
                   <Select
                     aria-label={`Role for ${user.fullName}`}
                     defaultValue={user.role}
-                    disabled={isPending}
+                    disabled={isPending || user.id === currentUserId}
+                    title={
+                      user.id === currentUserId
+                        ? 'You cannot change your own role'
+                        : undefined
+                    }
                     onChange={(event) => {
                       const newRole = event.target.value as Role
                       startTransition(() => {
@@ -159,18 +171,38 @@ export default function AdminUserTable({ users }: { users: AdminUserRow[] }) {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="sm"
-                    variant={user.isActive ? 'outline' : 'default'}
-                    disabled={isPending}
-                    onClick={() => {
-                      startTransition(() => {
-                        toggleUserActiveAction(user.id, !user.isActive)
-                      })
-                    }}
-                  >
-                    {user.isActive ? 'Active' : 'Deactivated'}
-                  </Button>
+                  {user.id === currentUserId ? (
+                    // Deactivating yourself locks you out of the very screen
+                    // that could undo it. The RPC refuses it too; this just
+                    // stops the click reading as available.
+                    <span
+                      title="You cannot deactivate your own account"
+                      className="inline-flex h-8 items-center rounded-md border border-border px-3 text-xs text-muted-foreground"
+                    >
+                      Active — you
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant={user.isActive ? 'outline' : 'default'}
+                      disabled={isPending}
+                      onClick={() => {
+                        if (
+                          user.isActive &&
+                          !window.confirm(
+                            `Deactivate ${user.fullName}? They will be signed out and blocked from clocking in until reactivated.`
+                          )
+                        ) {
+                          return
+                        }
+                        startTransition(() => {
+                          toggleUserActiveAction(user.id, !user.isActive)
+                        })
+                      }}
+                    >
+                      {user.isActive ? 'Active' : 'Deactivated'}
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Link

@@ -1,8 +1,8 @@
 'use client'
 
-import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import DecisionButtons from './DecisionButtons'
 import { cancelLeaveRequestAction } from '@/lib/leave/actions'
 import type { LeaveRequestRecord } from '@/lib/leave/queries'
 
@@ -21,14 +21,23 @@ interface LeaveRequestListProps {
   requests: LeaveRequestRecord[]
   currentUserId: string
   showCancel?: boolean
-  approvalActions?: (request: LeaveRequestRecord) => ReactNode
+  /**
+   * Render approve/reject controls on pending rows.
+   *
+   * A plain boolean, not a render prop: this is a Client Component, and a
+   * function prop cannot be serialized across the server/client boundary — it
+   * throws "Functions cannot be passed directly to Client Components" and takes
+   * the page down. DecisionButtons is a client component too, so it is simply
+   * imported here rather than injected.
+   */
+  showApprovalActions?: boolean
 }
 
 export default function LeaveRequestList({
   requests,
   currentUserId,
   showCancel,
-  approvalActions,
+  showApprovalActions,
 }: LeaveRequestListProps) {
   if (requests.length === 0) {
     return (
@@ -81,7 +90,9 @@ export default function LeaveRequestList({
                     </Button>
                   </form>
                 )}
-                {approvalActions?.(req)}
+                {showApprovalActions && req.status === 'pending' && (
+                  <DecisionButtons requestId={req.id} />
+                )}
               </div>
             </div>
           </li>
