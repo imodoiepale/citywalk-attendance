@@ -22,16 +22,18 @@ export default async function LeaveApprovalsPage() {
   const requests = await getAllApprovals(user.branchId, orgWide)
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4 px-4 py-5">
-      <div>
-        <h1 className="text-lg font-bold text-foreground sm:text-xl">Leave approvals</h1>
-        <p className="text-xs text-muted-foreground">
-          {orgWide ? 'Every branch' : user.branchName} ·{' '}
-          {requests.filter((r) => r.status === 'pending').length} awaiting a decision.
-        </p>
-      </div>
+    <div className="w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-lg font-bold text-foreground sm:text-xl">Leave approvals</h1>
+          <p className="text-xs text-muted-foreground">
+            {orgWide ? 'Every branch' : user.branchName} ·{' '}
+            {requests.filter((r) => r.status === 'pending').length} awaiting a decision.
+          </p>
+        </div>
 
-      <ApprovalsTable requests={requests} canDecide />
+        <ApprovalsTable requests={requests} canDecide />
+      </div>
     </div>
   )
 }

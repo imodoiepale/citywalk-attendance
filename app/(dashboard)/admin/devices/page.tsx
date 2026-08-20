@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ChevronLeft, DoorClosed, Fingerprint, TriangleAlert } from 'lucide-react'
+import { DoorClosed, Fingerprint, TriangleAlert } from 'lucide-react'
 import { requirePermission } from '@/lib/auth'
 import { listDevices, summarise } from '@/lib/biometric/queries'
 import { listBranches } from '@/lib/admin/queries'
@@ -13,6 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import DeviceSheet from '@/components/devices/DeviceSheet'
 import DeviceHealthBadge from '@/components/devices/DeviceHealthBadge'
@@ -34,7 +36,13 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: 'wa
         <div className="text-xs text-muted-foreground">{label}</div>
         <div
           className={`text-lg font-semibold tabular-nums ${
-            value === 0 ? 'text-foreground' : tone === 'bad' ? 'text-destructive' : tone === 'warn' ? 'text-warning' : 'text-foreground'
+            value === 0
+              ? 'text-foreground'
+              : tone === 'bad'
+                ? 'text-destructive'
+                : tone === 'warn'
+                  ? 'text-warning'
+                  : 'text-foreground'
           }`}
         >
           {value}
@@ -51,16 +59,9 @@ export default async function DevicesPage() {
   const branchOptions = branches.map((b) => ({ id: b.id, name: b.name }))
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link
-            href="/admin/users"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-3 w-3" />
-            Admin
-          </Link>
           <h1 className="text-lg font-bold text-foreground sm:text-xl">Biometric devices</h1>
           <p className="text-xs text-muted-foreground">
             Every reader across branches, warehouses and restricted areas — whether or not it clocks
@@ -85,7 +86,10 @@ export default async function DevicesPage() {
         </div>
       </div>
 
-      <div data-tour="device-health" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+      <div
+        data-tour="device-health"
+        className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6"
+      >
         <Stat label="Devices" value={summary.total} />
         <Stat label="Online" value={summary.online} />
         <Stat label="Not seen recently" value={summary.stale} tone="warn" />
@@ -109,15 +113,17 @@ export default async function DevicesPage() {
             <p className="text-sm text-muted-foreground">No devices registered yet.</p>
             <p className="text-xs text-muted-foreground">
               Add one by serial number, then point it at{' '}
-              <code className="rounded bg-secondary px-1 py-0.5">/api/biometric/iclock</code> or post
-              its scans to <code className="rounded bg-secondary px-1 py-0.5">/api/biometric/events</code>.
+              <code className="rounded bg-secondary px-1 py-0.5">/api/biometric/iclock</code> or
+              post its scans to{' '}
+              <code className="rounded bg-secondary px-1 py-0.5">/api/biometric/events</code>.
             </p>
           </CardContent>
         </Card>
       ) : (
         <Table containerClassName="rounded-xl border border-border">
-          <TableHeader>
+          <TableHeader sticky>
             <TableRow>
+              <TableRowNumberHead />
               <TableHead>Device</TableHead>
               <TableHead>Serial</TableHead>
               <TableHead>Location</TableHead>
@@ -130,8 +136,9 @@ export default async function DevicesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {devices.map((device) => (
+            {devices.map((device, index) => (
               <TableRow key={device.id}>
+                  <TableRowNumber value={index + 1} />
                 <TableCell className="font-medium">{device.name}</TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {device.serialNo}
@@ -157,7 +164,9 @@ export default async function DevicesPage() {
                 <TableCell>
                   <DeviceHealthBadge health={device.health} />
                 </TableCell>
-                <TableCell className="text-muted-foreground">{relative(device.lastSeenAt)}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {relative(device.lastSeenAt)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{device.events24h}</TableCell>
                 <TableCell>
                   <DeviceSheet

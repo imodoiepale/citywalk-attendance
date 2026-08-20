@@ -22,9 +22,20 @@ Table.displayName = 'Table'
 
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn('bg-secondary/60 [&_tr]:border-b', className)} {...props} />
+  React.HTMLAttributes<HTMLTableSectionElement> & { sticky?: boolean }
+>(({ className, sticky, ...props }, ref) => (
+  <thead
+    ref={ref}
+    className={cn(
+      'bg-secondary/60 [&_tr]:border-b',
+      // Applied to the cells, not the thead: a sticky <thead> is not honoured
+      // in most browsers, whereas sticky <th> is. Opaque background, or rows
+      // scroll visibly underneath it.
+      sticky && '[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-secondary',
+      className
+    )}
+    {...props}
+  />
 ))
 TableHeader.displayName = 'TableHeader'
 

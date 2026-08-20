@@ -11,6 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import CorrectionDecisionButtons from '@/components/corrections/CorrectionDecisionButtons'
 
@@ -36,7 +38,12 @@ export default async function CorrectionsPage() {
   const user = await requireUser()
 
   const orgWide = canAtLeast(user.permissions, user.role, 'attendance.correct.org', 'org')
-  const branchScoped = canAtLeast(user.permissions, user.role, 'attendance.correct.branch', 'branch')
+  const branchScoped = canAtLeast(
+    user.permissions,
+    user.role,
+    'attendance.correct.branch',
+    'branch',
+  )
   if (!orgWide && !branchScoped) {
     redirect('/?error=forbidden')
   }
@@ -47,122 +54,127 @@ export default async function CorrectionsPage() {
   ])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 px-4 py-5">
-      <div>
-        <h1 className="text-lg font-bold text-foreground sm:text-xl">Punch corrections</h1>
-        <p className="text-xs text-muted-foreground">
-          {orgWide ? 'Every branch' : user.branchName} · {queue.length} awaiting a decision.
-          Approving rewrites the punch and updates every report.
-        </p>
-      </div>
-
-      {queue.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            Nothing awaiting a decision.
-          </CardContent>
-        </Card>
-      ) : (
-        <ul data-tour="corrections-queue" className="space-y-3">
-          {queue.map((correction) => (
-            <li key={correction.id}>
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {correction.userName}
-                        <span className="ml-2 font-normal text-muted-foreground">
-                          {correction.branchName}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Filed by {correction.requestedByName} · {formatDateTime(correction.createdAt)}
-                      </p>
-                    </div>
-                    <Badge variant={correction.punchId ? 'warning' : 'secondary'}>
-                      {correction.punchId ? 'Edit punch' : 'Missing punch'}
-                    </Badge>
-                  </div>
-
-                  <Table containerClassName="rounded-lg border border-border">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead />
-                        <TableHead>Clock in</TableHead>
-                        <TableHead>Clock out</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="text-muted-foreground">Recorded</TableCell>
-                        <TableCell className="tabular-nums">
-                          {formatDateTime(correction.originalClockInAt)}
-                        </TableCell>
-                        <TableCell className="tabular-nums">
-                          {formatDateTime(correction.originalClockOutAt)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Proposed</TableCell>
-                        <TableCell className="font-medium tabular-nums">
-                          {formatDateTime(correction.proposedClockInAt)}
-                        </TableCell>
-                        <TableCell className="font-medium tabular-nums">
-                          {formatDateTime(correction.proposedClockOutAt)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-
-                  <p className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-foreground">
-                    {correction.reason}
-                  </p>
-
-                  <CorrectionDecisionButtons id={correction.id} />
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {decided.length > 0 ? (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-foreground">Recent decisions</h2>
-          <Table containerClassName="rounded-xl border border-border">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Staff</TableHead>
-                <TableHead>Proposed</TableHead>
-                <TableHead>Decided</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {decided.map((correction) => (
-                <TableRow key={correction.id}>
-                  <TableCell className="font-medium">{correction.userName}</TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatDateTime(correction.proposedClockInAt)} →{' '}
-                    {formatDateTime(correction.proposedClockOutAt)}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {formatDateTime(correction.decidedAt)}
-                  </TableCell>
-                  <TableCell>{correction.decidedByName ?? '—'}</TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANT[correction.status] ?? 'secondary'}>
-                      {correction.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+    <div className="w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-lg font-bold text-foreground sm:text-xl">Punch corrections</h1>
+          <p className="text-xs text-muted-foreground">
+            {orgWide ? 'Every branch' : user.branchName} · {queue.length} awaiting a decision.
+            Approving rewrites the punch and updates every report.
+          </p>
         </div>
-      ) : null}
+
+        {queue.length === 0 ? (
+          <Card>
+            <CardContent className="p-6 text-center text-sm text-muted-foreground">
+              Nothing awaiting a decision.
+            </CardContent>
+          </Card>
+        ) : (
+          <ul data-tour="corrections-queue" className="space-y-3">
+            {queue.map((correction) => (
+              <li key={correction.id}>
+                <Card>
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          {correction.userName}
+                          <span className="ml-2 font-normal text-muted-foreground">
+                            {correction.branchName}
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Filed by {correction.requestedByName} ·{' '}
+                          {formatDateTime(correction.createdAt)}
+                        </p>
+                      </div>
+                      <Badge variant={correction.punchId ? 'warning' : 'secondary'}>
+                        {correction.punchId ? 'Edit punch' : 'Missing punch'}
+                      </Badge>
+                    </div>
+
+                    <Table data-table-kind="comparison" containerClassName="rounded-lg border border-border">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead />
+                          <TableHead>Clock in</TableHead>
+                          <TableHead>Clock out</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="text-muted-foreground">Recorded</TableCell>
+                          <TableCell className="tabular-nums">
+                            {formatDateTime(correction.originalClockInAt)}
+                          </TableCell>
+                          <TableCell className="tabular-nums">
+                            {formatDateTime(correction.originalClockOutAt)}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Proposed</TableCell>
+                          <TableCell className="font-medium tabular-nums">
+                            {formatDateTime(correction.proposedClockInAt)}
+                          </TableCell>
+                          <TableCell className="font-medium tabular-nums">
+                            {formatDateTime(correction.proposedClockOutAt)}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+
+                    <p className="rounded-lg bg-secondary/40 px-3 py-2 text-sm text-foreground">
+                      {correction.reason}
+                    </p>
+
+                    <CorrectionDecisionButtons id={correction.id} />
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {decided.length > 0 ? (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-foreground">Recent decisions</h2>
+            <Table containerClassName="rounded-xl border border-border">
+              <TableHeader sticky>
+                <TableRow>
+                  <TableRowNumberHead />
+                  <TableHead>Staff</TableHead>
+                  <TableHead>Proposed</TableHead>
+                  <TableHead>Decided</TableHead>
+                  <TableHead>By</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {decided.map((correction, index) => (
+                  <TableRow key={correction.id}>
+                    <TableRowNumber value={index + 1} />
+                    <TableCell className="font-medium">{correction.userName}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatDateTime(correction.proposedClockInAt)} →{' '}
+                      {formatDateTime(correction.proposedClockOutAt)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatDateTime(correction.decidedAt)}
+                    </TableCell>
+                    <TableCell>{correction.decidedByName ?? '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANT[correction.status] ?? 'secondary'}>
+                        {correction.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

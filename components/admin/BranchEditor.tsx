@@ -15,6 +15,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import { upsertBranchAction } from '@/lib/admin/actions'
 import type { BranchRow } from '@/lib/admin/queries'
@@ -167,8 +169,9 @@ export default function BranchEditor({ branches }: { branches: BranchRow[] }) {
       <Card>
         <CardContent className="p-0">
           <Table containerClassName="rounded-xl">
-            <TableHeader>
+            <TableHeader sticky>
               <TableRow>
+                <TableRowNumberHead />
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Town</TableHead>
@@ -179,8 +182,9 @@ export default function BranchEditor({ branches }: { branches: BranchRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {branches.map((branch) => (
+              {branches.map((branch, index) => (
                 <TableRow key={branch.id}>
+                  <TableRowNumber value={index + 1} />
                   <TableCell className="font-mono text-xs">{branch.code}</TableCell>
                   <TableCell className="font-medium">{branch.name}</TableCell>
                   <TableCell className="text-muted-foreground">{branch.town ?? '—'}</TableCell>

@@ -95,7 +95,7 @@ function SortHead({
   onSort: (key: SortKey) => void
 }) {
   return (
-    <TableHead className={cn('sticky top-0 z-10 bg-secondary', right && 'text-right')}>
+    <TableHead className={cn(right && 'text-right')}>
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -249,25 +249,25 @@ export default function ApprovalsTable({
         </Card>
       ) : (
         <Table containerClassName="max-h-[65vh] overflow-y-auto rounded-xl border border-border" data-tour="approval-table">
-          <TableHeader>
+          <TableHeader sticky>
             <TableRow>
-              <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />
+              <TableRowNumberHead />
               <SortHead label="Staff" sortKey="requester" sort={sort} onSort={toggleSort} />
               {visible('branch') ? <SortHead label="Branch" sortKey="branch" sort={sort} onSort={toggleSort} /> : null}
               {visible('type') ? <SortHead label="Type" sortKey="type" sort={sort} onSort={toggleSort} /> : null}
               {visible('dates') ? <SortHead label="Dates" sortKey="dates" sort={sort} onSort={toggleSort} /> : null}
               {visible('days') ? <SortHead label="Days" sortKey="days" right sort={sort} onSort={toggleSort} /> : null}
               {visible('reason') ? (
-                <TableHead className="sticky top-0 z-10 bg-secondary">Reason</TableHead>
+                <TableHead>Reason</TableHead>
               ) : null}
               {visible('filedBy') ? (
-                <TableHead className="sticky top-0 z-10 bg-secondary">Filed by</TableHead>
+                <TableHead>Filed by</TableHead>
               ) : null}
               {visible('status') ? <SortHead label="Status" sortKey="status" sort={sort} onSort={toggleSort} /> : null}
               {visible('decision') ? (
-                <TableHead className="sticky top-0 z-10 bg-secondary">Decision</TableHead>
+                <TableHead>Decision</TableHead>
               ) : null}
-              {canDecide ? <TableHead className="sticky top-0 z-10 bg-secondary" /> : null}
+              {canDecide ? <TableHead /> : null}
             </TableRow>
           </TableHeader>
 

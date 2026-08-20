@@ -33,15 +33,15 @@ export default async function DashboardPage({
 
   const [settings, punches, weekHours, pendingLeaveCount, awaitingApprovalCount, unseenDecisions] =
     await Promise.all([
-    getSettings(),
-    getTodaysPunches(user.id),
-    getWeeklyHours(user.id),
-    countMyPendingLeave(user.id),
-    canApproveOrg || canApproveBranch
-      ? countApprovalQueue(user.branchId, canApproveOrg)
-      : Promise.resolve(null),
-    getUnseenLeaveDecisions(user.id),
-  ])
+      getSettings(),
+      getTodaysPunches(user.id),
+      getWeeklyHours(user.id),
+      countMyPendingLeave(user.id),
+      canApproveOrg || canApproveBranch
+        ? countApprovalQueue(user.branchId, canApproveOrg)
+        : Promise.resolve(null),
+      getUnseenLeaveDecisions(user.id),
+    ])
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 px-4 py-4 sm:space-y-6 sm:py-6">

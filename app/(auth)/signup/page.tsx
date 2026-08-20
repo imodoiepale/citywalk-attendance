@@ -18,7 +18,7 @@ export default async function SignupPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const params = await searchParams
-  const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? params.error : null
+  const errorMessage = params.error ? (ERROR_MESSAGES[params.error] ?? params.error) : null
 
   const supabase = await createClient()
   const { data: branches } = await supabase
@@ -31,11 +31,15 @@ export default async function SignupPage({
     <Card>
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
-        <CardDescription>Pick your branch — you can clock in as soon as you sign up.</CardDescription>
+        <CardDescription>
+          Pick your branch — you can clock in as soon as you sign up.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {errorMessage && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage}</p>
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </p>
         )}
         <form action={signUpAction} className="space-y-4">
           <div className="space-y-1.5">
@@ -48,7 +52,14 @@ export default async function SignupPage({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="branch_id">Branch</Label>
@@ -69,7 +80,10 @@ export default async function SignupPage({
         </form>
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="font-medium text-primary-strong underline-offset-4 hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-primary-strong underline-offset-4 hover:underline"
+          >
             Sign in
           </Link>
         </p>

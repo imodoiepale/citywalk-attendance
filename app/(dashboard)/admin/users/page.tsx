@@ -15,7 +15,7 @@ export default async function AdminUsersPage() {
   const canPermissions = canAtLeast(user.permissions, user.role, 'admin.permissions', 'full')
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-foreground sm:text-xl">Users</h1>
@@ -49,10 +49,7 @@ export default async function AdminUsersPage() {
               Devices
             </Link>
           ) : null}
-          <Link
-            href="/admin/audit"
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          >
+          <Link href="/admin/audit" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
             Audit log
           </Link>
           {canSettings ? (

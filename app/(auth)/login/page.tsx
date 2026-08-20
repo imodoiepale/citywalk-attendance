@@ -20,7 +20,9 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; notice?: string; next?: string }>
 }) {
   const params = await searchParams
-  const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong. Try again.' : null
+  const errorMessage = params.error
+    ? (ERROR_MESSAGES[params.error] ?? 'Something went wrong. Try again.')
+    : null
 
   return (
     <Card>
@@ -40,7 +42,9 @@ export default async function LoginPage({
           </p>
         )}
         {errorMessage && (
-          <p className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage}</p>
+          <p className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {errorMessage}
+          </p>
         )}
         <form action={signInAction} className="space-y-4">
           <input type="hidden" name="next" value={params.next ?? '/'} />
@@ -58,7 +62,13 @@ export default async function LoginPage({
                 Forgot password?
               </Link>
             </div>
-            <Input id="password" name="password" type="password" required autoComplete="current-password" />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+            />
           </div>
           <Button type="submit" className="w-full">
             Sign in
@@ -66,7 +76,10 @@ export default async function LoginPage({
         </form>
         <p className="text-center text-sm text-muted-foreground">
           New here?{' '}
-          <Link href="/signup" className="font-medium text-primary-strong underline-offset-4 hover:underline">
+          <Link
+            href="/signup"
+            className="font-medium text-primary-strong underline-offset-4 hover:underline"
+          >
             Create an account
           </Link>
         </p>

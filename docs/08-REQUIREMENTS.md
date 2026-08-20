@@ -13,6 +13,7 @@ automated check that proves it. Proposal context is in
 **Verification key:**
 `P` = `npm run verify:pages` · `L` = `npm run verify:live` ·
 `B` = `npm run verify:biometric` · `T` = `npm run verify:timesheet` ·
+`X` = `npm run verify:tables` ·
 `S` = SQL suite · `M` = manual
 
 ---
@@ -119,6 +120,11 @@ automated check that proves it. Proposal context is in
 
 | # | Requirement | Status | Check |
 |---|---|---|---|
+| H0 | Every screen uses one container and starts on the same left edge. Only the dashboard is centred. | ✅ | M |
+| H0a | The admin area has its own second-level navigation, gated so a role never sees a screen it cannot open. | ✅ | P |
+| H0b | Page title, description and actions stay visible while a long table scrolls. | ✅ | M |
+| H0c | Table headers stay visible while the table scrolls. | ✅ | M |
+| H0d | Every list table carries row numbers, and every table's body columns match its header. Comparison tables opt out of numbering explicitly. | ✅ | X |
 | H1 | Breadcrumbs on every screen; segments without a page render as text, not links. | ✅ | P |
 | H2 | A hamburger drawer below `lg` containing every destination. | ✅ | P |
 | H3 | Bottom tabs for the four most-used screens, clear of the iOS home indicator. | ✅ | M |

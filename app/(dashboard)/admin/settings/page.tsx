@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
 import { requirePermission } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
 import { getFaceRoster } from '@/lib/face/queries'
@@ -56,15 +54,8 @@ export default async function AdminSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div>
-        <Link
-          href="/admin/users"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="h-3 w-3" />
-          Admin
-        </Link>
         <h1 className="text-lg font-bold text-foreground sm:text-xl">Org settings</h1>
         <p className="text-xs text-muted-foreground">
           These drive the dial, the calendar heatmap and the overtime column on every timesheet.

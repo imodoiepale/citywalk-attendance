@@ -12,11 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 
-export default async function AdminUserDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission('admin.users', 'full')
   const { id } = await params
 
@@ -24,7 +20,7 @@ export default async function AdminUserDetailPage({
   if (!user) notFound()
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div>
         <Link
           href="/admin/users"
@@ -65,7 +61,9 @@ export default async function AdminUserDetailPage({
                 defaultValue={user.jobTitle ?? ''}
                 placeholder="e.g. Sales Associate"
               />
-              <p className="text-xs text-muted-foreground">Shown as a column on timesheet exports.</p>
+              <p className="text-xs text-muted-foreground">
+                Shown as a column on timesheet exports.
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -80,8 +78,8 @@ export default async function AdminUserDetailPage({
                 ))}
               </Select>
               <p className="text-xs text-muted-foreground">
-                Moving someone re-scopes their future punches and leave. Past records keep the branch
-                they were filed under.
+                Moving someone re-scopes their future punches and leave. Past records keep the
+                branch they were filed under.
               </p>
             </div>
 

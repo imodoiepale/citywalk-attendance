@@ -1,8 +1,8 @@
-import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
-import { ThemeProvider } from "@/components/theme-provider";
-import { ToastProvider } from "@/components/ui/toast";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next'
+import localFont from 'next/font/local'
+import { ThemeProvider } from '@/components/theme-provider'
+import { ToastProvider } from '@/components/ui/toast'
+import './globals.css'
 
 // Self-hosted rather than next/font/google. The Google Fonts fetch happens at
 // BUILD time, so a build machine that cannot reach fonts.googleapis.com fails
@@ -13,24 +13,24 @@ import "./globals.css";
 const inter = localFont({
   src: [
     {
-      path: "../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
-      style: "normal",
+      path: '../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+      style: 'normal',
     },
     {
-      path: "../node_modules/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2",
-      style: "italic",
+      path: '../node_modules/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2',
+      style: 'italic',
     },
   ],
-  variable: "--font-inter",
-  display: "swap",
-  weight: "100 900",
-  fallback: ["system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
-});
+  variable: '--font-inter',
+  display: 'swap',
+  weight: '100 900',
+  fallback: ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+})
 
-const APP_NAME = "Citywalk Attendance";
-const APP_DEFAULT_TITLE = "Citywalk Attendance";
-const APP_TITLE_TEMPLATE = "%s · Citywalk Attendance";
-const APP_DESCRIPTION = "Clock in and out, track shifts and hours across Citywalk branches";
+const APP_NAME = 'Citywalk Attendance'
+const APP_DEFAULT_TITLE = 'Citywalk Attendance'
+const APP_TITLE_TEMPLATE = '%s · Citywalk Attendance'
+const APP_DESCRIPTION = 'Clock in and out, track shifts and hours across Citywalk branches'
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -39,27 +39,27 @@ export const metadata: Metadata = {
     template: APP_TITLE_TEMPLATE,
   },
   description: APP_DESCRIPTION,
-  manifest: "/manifest.webmanifest",
+  manifest: '/manifest.webmanifest',
   icons: {
     // favicon.svg first so modern browsers get the crisp vector; .ico is the
     // fallback and is what Windows pins/taskbar shortcuts actually read.
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "any" },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
     ],
-    shortcut: [{ url: "/favicon.ico" }],
-    apple: [{ url: "/logo-mark.png", type: "image/png" }],
+    shortcut: [{ url: '/favicon.ico' }],
+    apple: [{ url: '/logo-mark.png', type: 'image/png' }],
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: 'black-translucent',
     title: APP_DEFAULT_TITLE,
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    type: "website",
+    type: 'website',
     siteName: APP_NAME,
     title: {
       default: APP_DEFAULT_TITLE,
@@ -67,17 +67,17 @@ export const metadata: Metadata = {
     },
     description: APP_DESCRIPTION,
   },
-};
+}
 
 export const viewport: Viewport = {
-  themeColor: "#0B0D10",
-  width: "device-width",
+  themeColor: '#0B0D10',
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-};
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
@@ -95,15 +95,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             install still follows the OS; once someone uses the toggle their
             choice is remembered. disableTransitionOnChange stops every themed
             element animating its colour at once when switching. */}
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

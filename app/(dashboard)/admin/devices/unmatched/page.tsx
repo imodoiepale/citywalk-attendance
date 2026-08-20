@@ -11,6 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import MapEnrollmentForm from '@/components/devices/MapEnrollmentForm'
 
@@ -34,7 +36,7 @@ export default async function UnmatchedScansPage() {
     .map((u) => ({ id: u.id, fullName: u.fullName, branchName: u.branchName }))
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div>
         <Link
           href="/admin/devices"
@@ -58,8 +60,9 @@ export default async function UnmatchedScansPage() {
         </Card>
       ) : (
         <Table containerClassName="rounded-xl border border-border">
-          <TableHeader>
+          <TableHeader sticky>
             <TableRow>
+              <TableRowNumberHead />
               <TableHead>Enrollment</TableHead>
               <TableHead>Device</TableHead>
               <TableHead className="text-right">Scans</TableHead>
@@ -69,15 +72,24 @@ export default async function UnmatchedScansPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {scans.map((scan) => (
+            {scans.map((scan, index) => (
               <TableRow key={`${scan.externalUserId}-${scan.deviceSerial}`}>
-                <TableCell className="font-mono text-xs font-medium">{scan.externalUserId}</TableCell>
+                  <TableRowNumber value={index + 1} />
+                <TableCell className="font-mono text-xs font-medium">
+                  {scan.externalUserId}
+                </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {scan.deviceName ?? <span className="font-mono text-xs">{scan.deviceSerial}</span>}
+                  {scan.deviceName ?? (
+                    <span className="font-mono text-xs">{scan.deviceSerial}</span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{scan.scans}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{when(scan.firstSeen)}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{when(scan.lastSeen)}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {when(scan.firstSeen)}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {when(scan.lastSeen)}
+                </TableCell>
                 <TableCell>
                   <MapEnrollmentForm
                     staff={staff}

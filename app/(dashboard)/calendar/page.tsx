@@ -42,51 +42,55 @@ export default async function CalendarPage({
   const monthTotal = Array.from(hoursByDay.values()).reduce((sum, h) => sum + h, 0)
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-8">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Calendar</h1>
-        <p className="text-sm text-muted-foreground">Your worked hours, day by day. Tap a day for detail.</p>
-      </div>
-
-      <WeeklyProgressRing hoursThisWeek={weeklyHours} targetHours={settings.weeklyTargetHours} />
-
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <Link
-            href={`/calendar?year=${prev.year}&month=${prev.month}`}
-            className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-accent"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-semibold text-foreground">{monthLabel}</span>
-            <span className="text-xs text-primary-strong">{monthTotal.toFixed(1)}h total</span>
-          </div>
-          {isCurrentMonth ? (
-            <span className="rounded-full border border-transparent p-1.5 text-muted-foreground/30">
-              <ChevronRight className="h-4 w-4" />
-            </span>
-          ) : (
-            <Link
-              href={`/calendar?year=${next.year}&month=${next.month}`}
-              className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-accent"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          )}
+    <div className="w-full px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Calendar</h1>
+          <p className="text-sm text-muted-foreground">
+            Your worked hours, day by day. Tap a day for detail.
+          </p>
         </div>
 
-        <MonthCalendar
-          year={year}
-          month={month}
-          hoursByDay={hoursByDay}
-          todayKey={toNairobiDateKey(new Date().toISOString())}
-          dailyTargetHours={settings.dailyTargetHours}
-          leaveDayKeys={leaveDayKeys}
-        />
+        <WeeklyProgressRing hoursThisWeek={weeklyHours} targetHours={settings.weeklyTargetHours} />
 
-        <div className="mt-4">
-          <Legend dailyTargetHours={settings.dailyTargetHours} />
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <Link
+              href={`/calendar?year=${prev.year}&month=${prev.month}`}
+              className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-accent"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+            <div className="flex flex-col items-center">
+              <span className="text-sm font-semibold text-foreground">{monthLabel}</span>
+              <span className="text-xs text-primary-strong">{monthTotal.toFixed(1)}h total</span>
+            </div>
+            {isCurrentMonth ? (
+              <span className="rounded-full border border-transparent p-1.5 text-muted-foreground/30">
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            ) : (
+              <Link
+                href={`/calendar?year=${next.year}&month=${next.month}`}
+                className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-accent"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            )}
+          </div>
+
+          <MonthCalendar
+            year={year}
+            month={month}
+            hoursByDay={hoursByDay}
+            todayKey={toNairobiDateKey(new Date().toISOString())}
+            dailyTargetHours={settings.dailyTargetHours}
+            leaveDayKeys={leaveDayKeys}
+          />
+
+          <div className="mt-4">
+            <Legend dailyTargetHours={settings.dailyTargetHours} />
+          </div>
         </div>
       </div>
     </div>

@@ -11,6 +11,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import MapEnrollmentForm from '@/components/devices/MapEnrollmentForm'
 
@@ -23,7 +25,7 @@ export default async function EnrollmentsPage() {
     .map((u) => ({ id: u.id, fullName: u.fullName, branchName: u.branchName }))
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-4 py-5">
+    <div className="space-y-4">
       <div>
         <Link
           href="/admin/devices"
@@ -58,8 +60,9 @@ export default async function EnrollmentsPage() {
         </Card>
       ) : (
         <Table containerClassName="rounded-xl border border-border">
-          <TableHeader>
+          <TableHeader sticky>
             <TableRow>
+              <TableRowNumberHead />
               <TableHead>Enrollment</TableHead>
               <TableHead>Staff</TableHead>
               <TableHead>Branch</TableHead>
@@ -67,8 +70,9 @@ export default async function EnrollmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {enrollments.map((row) => (
+            {enrollments.map((row, index) => (
               <TableRow key={row.id}>
+                  <TableRowNumber value={index + 1} />
                 <TableCell className="font-mono text-xs">{row.deviceUserId}</TableCell>
                 <TableCell>
                   <div className="font-medium text-foreground">{row.fullName}</div>

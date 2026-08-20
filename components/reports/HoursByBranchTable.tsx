@@ -7,6 +7,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import type { BranchHoursRow } from '@/lib/reports/analytics'
 
@@ -32,6 +34,7 @@ export default function HoursByBranchTable({
           <Table containerClassName="border-t border-border">
             <TableHeader>
               <TableRow>
+                <TableRowNumberHead />
                 <TableHead>Branch</TableHead>
                 <TableHead className="text-right">Active staff</TableHead>
                 <TableHead className="text-right">Total hours</TableHead>
@@ -39,8 +42,9 @@ export default function HoursByBranchTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <TableRow key={row.branchId}>
+                  <TableRowNumber value={index + 1} />
                   <TableCell className="font-medium text-foreground">
                     {row.branchName}{' '}
                     <span className="text-muted-foreground">({row.branchCode})</span>
@@ -59,6 +63,7 @@ export default function HoursByBranchTable({
             </TableBody>
             <TableFooter>
               <TableRow>
+                <TableRowNumber value={0} className="text-transparent" aria-hidden="true" />
                 <TableCell className="font-semibold">All branches</TableCell>
                 <TableCell className="text-right tabular-nums">{totalActive}</TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">

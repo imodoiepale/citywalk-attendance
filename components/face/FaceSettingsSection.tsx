@@ -157,12 +157,12 @@ export default function FaceSettingsSection({
             </p>
           </div>
           <Table containerClassName="max-h-72 overflow-y-auto rounded-lg border border-border">
-            <TableHeader>
+            <TableHeader sticky>
               <TableRow>
-                <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />
-                <TableHead className="sticky top-0 z-10 bg-secondary">Staff</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-secondary">Branch</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-secondary">Face</TableHead>
+                <TableRowNumberHead />
+                <TableHead>Staff</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead>Face</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

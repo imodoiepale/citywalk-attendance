@@ -7,6 +7,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import type { LeaveSummaryRow } from '@/lib/reports/analytics'
 
@@ -27,14 +29,16 @@ export default function LeaveSummaryTable({ rows }: { rows: LeaveSummaryRow[] })
           <Table containerClassName="border-t border-border">
             <TableHeader>
               <TableRow>
+                <TableRowNumberHead />
                 <TableHead>Branch</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Requests</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, index) => (
                 <TableRow key={`${row.branchId}-${row.type}`}>
+                  <TableRowNumber value={index + 1} />
                   <TableCell className="font-medium text-foreground">{row.branchName}</TableCell>
                   <TableCell className="capitalize text-muted-foreground">{row.type}</TableCell>
                   <TableCell className="text-right tabular-nums">{row.count}</TableCell>
@@ -43,6 +47,7 @@ export default function LeaveSummaryTable({ rows }: { rows: LeaveSummaryRow[] })
             </TableBody>
             <TableFooter>
               <TableRow>
+                <TableRowNumber value={0} className="text-transparent" aria-hidden="true" />
                 <TableCell className="font-semibold">Total</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-semibold tabular-nums">{total}</TableCell>

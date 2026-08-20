@@ -13,6 +13,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableRowNumber,
+  TableRowNumberHead,
 } from '@/components/ui/table'
 import { ROLES, ROLE_META, type Role } from '@/lib/rbac-catalog'
 import { updateUserRoleAction, toggleUserActiveAction } from '@/lib/admin/actions'
@@ -121,8 +123,9 @@ export default function AdminUserTable({
       </div>
 
       <Table containerClassName="rounded-2xl border border-border bg-card shadow-card" data-tour="admin-user-table">
-        <TableHeader>
+        <TableHeader sticky>
           <TableRow>
+            <TableRowNumberHead />
             <TableHead>Name</TableHead>
             <TableHead>Branch</TableHead>
             <TableHead>Role</TableHead>
@@ -133,13 +136,15 @@ export default function AdminUserTable({
         <TableBody>
           {visible.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                 No users match these filters.
               </TableCell>
             </TableRow>
           ) : (
-            visible.map((user) => (
+            visible.map((user, index) => (
               <TableRow key={user.id}>
+                {/* Continues across pages, so a quoted row number is unambiguous. */}
+                <TableRowNumber value={currentPage * PAGE_SIZE + index + 1} />
                 <TableCell>
                   <div className="font-medium text-foreground">{user.fullName}</div>
                   <div className="text-xs text-muted-foreground">{user.email}</div>

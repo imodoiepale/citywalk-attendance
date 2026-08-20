@@ -146,17 +146,17 @@ export default function TimesheetTable({
       </div>
 
       <Table containerClassName="max-h-[60vh] overflow-y-auto rounded-xl border border-border" data-tour="timesheet-table">
-        <TableHeader>
+        <TableHeader sticky>
           {table.getHeaderGroups().map((group) => (
             <TableRow key={group.id}>
-              <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />
+              <TableRowNumberHead />
               {group.headers.map((header) => {
                 const sorted = header.column.getIsSorted()
                 const numeric = !TEXT_COLUMNS.has(header.column.id)
                 return (
                   <TableHead
                     key={header.id}
-                    className={cn('sticky top-0 z-10 bg-secondary', numeric && 'text-right')}
+                    className={cn(numeric && 'text-right')}
                   >
                     <button
                       type="button"

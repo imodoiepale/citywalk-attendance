@@ -170,10 +170,10 @@ export default function AuditTable({
         </Card>
       ) : (
         <Table containerClassName="max-h-[65vh] overflow-y-auto rounded-xl border border-border">
-          <TableHeader>
+          <TableHeader sticky>
             <TableRow>
-              <TableRowNumberHead className="sticky top-0 z-10 bg-secondary" />
-              <TableHead className="sticky top-0 z-10 bg-secondary">
+              <TableRowNumberHead />
+              <TableHead>
                 <button
                   type="button"
                   onClick={() => setSortDesc((d) => !d)}
@@ -183,10 +183,10 @@ export default function AuditTable({
                   {sortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
                 </button>
               </TableHead>
-              <TableHead className="sticky top-0 z-10 bg-secondary">Who</TableHead>
-              <TableHead className="sticky top-0 z-10 bg-secondary">Action</TableHead>
-              <TableHead className="sticky top-0 z-10 bg-secondary">What changed</TableHead>
-              <TableHead className="sticky top-0 z-10 bg-secondary" />
+              <TableHead>Who</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>What changed</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
