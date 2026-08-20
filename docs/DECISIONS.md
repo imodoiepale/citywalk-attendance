@@ -234,3 +234,33 @@ Indexes were added anyway, and are correct, but they were never the bottleneck �
 these tables hold tens of rows. The remaining latency is geographic. If it stays
 a problem the fix is the project's region, not the code; note that Mumbai
 (ap-south-1) is roughly 2,500km closer to Nairobi than Ireland is.
+
+## 2026-08-20 — Design system adopted from the Portal Hub
+
+The shell looked like scaffolding next to `citywalk-portals-hub`, and there was
+no way to choose a theme. Both are now fixed by taking the hub as the source of
+truth for the visual language, exactly as the DMS is the source of truth for the
+branch list.
+
+Token *values* are copied verbatim; the plumbing is not. The hub is Tailwind v3
+with a `tailwind.config.ts`, this app is v4 CSS-first, so tokens are registered
+in `@theme inline`. Copying the config would not have worked.
+
+Two things this surfaced, both worth keeping:
+
+- `:root` and `.dark` have the same specificity. A light block written as
+  `:root, :root:not(.dark)` sits after `.dark` in source order and wins, so the
+  page renders light while the dark class is applied. Caught by reading computed
+  styles in the browser, not by looking at the CSS. The light block is
+  `:root:not(.dark)` only.
+- Dark mode had to move off `prefers-color-scheme` entirely. A media query
+  cannot be overridden by the user, so no toggle is possible while it is the
+  mechanism. `next-themes` resolves `system` to an explicit class before paint.
+
+The mobile scrolling top-nav row was deleted rather than restyled: it duplicated
+the bottom tab bar and cost a band of vertical space on the devices with least
+of it. Sidebar breakpoint moved `md` → `lg`, because at `md` the sidebar plus a
+timesheet's day columns left nothing readable.
+
+Badge and ring colours moved from hardcoded hexes to tokens, so they follow the
+theme instead of staying pinned to the old light palette.

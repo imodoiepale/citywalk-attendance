@@ -2,7 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, ClipboardList, CheckSquare, BarChart3, TableProperties, ShieldCheck, type LucideIcon } from 'lucide-react'
+import {
+  LayoutDashboard,
+  CalendarDays,
+  ClipboardList,
+  CheckSquare,
+  BarChart3,
+  TableProperties,
+  PencilRuler,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ICONS: Record<string, LucideIcon> = {
@@ -10,6 +20,7 @@ const ICONS: Record<string, LucideIcon> = {
   '/calendar': CalendarDays,
   '/leave': ClipboardList,
   '/leave/approvals': CheckSquare,
+  '/attendance/corrections': PencilRuler,
   '/reports': BarChart3,
   '/reports/timesheets': TableProperties,
   '/admin/users': ShieldCheck,
@@ -35,9 +46,10 @@ export default function NavLink({
     return (
       <Link
         href={href}
+        aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-          isActive ? 'text-primary-strong' : 'text-muted-foreground'
+          'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors duration-150 ease-standard',
+          isActive ? 'text-primary' : 'text-muted-foreground'
         )}
       >
         <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} />
@@ -46,18 +58,21 @@ export default function NavLink({
     )
   }
 
+  // Sidebar treatment ported from the Portal Hub's NavItem: the active row is a
+  // gold surface with a hairline border and inset glow, not a solid fill.
   return (
     <Link
       href={href}
+      aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        'flex h-10 items-center gap-2.5 rounded-[11px] px-3 text-[13px] font-medium transition-colors duration-150 ease-standard',
         isActive
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+          ? 'border border-primary/20 bg-primary-surface text-primary shadow-selected'
+          : 'text-muted-foreground hover:bg-card-hover hover:text-foreground'
       )}
     >
-      <Icon className="h-4 w-4" strokeWidth={isActive ? 2.2 : 1.8} />
-      {label}
+      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+      <span className="truncate">{label}</span>
     </Link>
   )
 }

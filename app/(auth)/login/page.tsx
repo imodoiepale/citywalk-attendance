@@ -30,17 +30,17 @@ export default async function LoginPage({
       </CardHeader>
       <CardContent className="space-y-4">
         {params.notice === 'check-email' && (
-          <p className="rounded-lg bg-[#12B76A]/10 px-3 py-2 text-sm text-[#12B76A]">
+          <p className="rounded-md border border-success/25 bg-success/10 px-3 py-2 text-sm text-success">
             Check your email to confirm your account, then sign in.
           </p>
         )}
         {params.notice === 'reset-sent' && (
-          <p className="rounded-lg bg-[#12B76A]/10 px-3 py-2 text-sm text-[#12B76A]">
+          <p className="rounded-md border border-success/25 bg-success/10 px-3 py-2 text-sm text-success">
             If that address has an account, a reset link is on its way.
           </p>
         )}
         {errorMessage && (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage}</p>
+          <p className="rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorMessage}</p>
         )}
         <form action={signInAction} className="space-y-4">
           <input type="hidden" name="next" value={params.next ?? '/'} />

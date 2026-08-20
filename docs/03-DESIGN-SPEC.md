@@ -12,23 +12,81 @@ Visual/UX detail. Product scope is in [`01-PRD.md`](./01-PRD.md); technical arch
 
 ## Design tokens
 
-Tailwind v4 CSS-first, defined in `app/globals.css` (`:root` for light, `@media (prefers-color-scheme: dark)` for dark, mapped into Tailwind via `@theme inline`):
+Ported **verbatim from `citywalk-portals-hub`** (`app/globals.css`) so the two
+apps read as one product. The hub is Tailwind v3 with a `tailwind.config.ts`;
+this app is v4 CSS-first, so the *values* are shared but the plumbing is not —
+tokens are registered in `@theme inline`, not a config file.
 
-| Token | Light | Purpose |
-|---|---|---|
-| `--primary` | `oklch(0.64 0.13 90)` (`#AB8704`) | Primary surface — buttons, active nav, ring fill |
-| `--primary-strong` | `oklch(0.53 0.108 90)` (`#846801`) | Primary text/icon glyph — passes contrast where `--primary` as text wouldn't |
-| `--brand-gold` | `oklch(0.927 0.195 104)` (`#FDEC06`) | The wordmark yellow — never used as a fill/text colour, only in gradients and the logo itself |
-| `--brand-ink` | `oklch(0.16 0.006 250)` (`#0B0D10`) | Near-black the logo sits on; also the icon-tile gradient base |
-| `--radius` | `0.75rem` | Card/button corner radius, matching the DMS's "Horizon card" idiom |
+Authored **dark-first**, matching the hub: `.dark` holds the dark palette and
+`:root:not(.dark)` the light one.
 
-Same split-gold rationale as the DMS: `#FDEC06` has too little contrast to ever be a button fill or body text, so `--primary`/`--primary-strong` do the actual UI work while the raw gold stays reserved for logos and gradients.
+| Token | Dark | Light | Purpose |
+|---|---|---|---|
+| `--background` | `#070809` | `#f2f1ed` | Page ground (ivory in light, near-black in dark) |
+| `--sidebar` | `#08090a` | `#f7f6f2` | Sidebar surface, distinct from both page and card |
+| `--card` / `--card-soft` | `#101214` / `#121416` | `#fbfaf7` / `#f7f6f2` | Cards are a vertical gradient between the two |
+| `--card-hover` | `#15181a` | `#ffffff` | Hover surface for nav rows and menu items |
+| `--primary` | `#ffd000` | `#d7a900` | Gold. Brighter in dark, deeper in light, for contrast on each ground |
+| `--primary-surface` | `rgba(255,208,0,.1)` | `#fbf3d6` | Active-nav tint and focus glow |
+| `--border` / `--border-strong` | 8% / 13% white | 7% / 12% ink | Hairlines; `-strong` for interactive edges |
+| `--radius` | `0.875rem` | | Base radius; `xs .5` → `xl 1.375rem` |
+| `--ease-standard` | `cubic-bezier(.2,.8,.2,1)` | | Every transition uses it |
+
+**Dark mode is class-based, not a media query**, via `@custom-variant dark
+(&:where(.dark, .dark *))`. A bare `prefers-color-scheme` rule cannot be
+overridden by the user, so a manual toggle is impossible with it; `next-themes`
+resolves `system` to an explicit class before paint instead.
+
+One trap worth recording: `:root` and `.dark` have the **same specificity**, so
+a light block written as `:root, :root:not(.dark)` silently beats `.dark` on
+source order and the page renders light while the dark class is applied. The
+light block is `:root:not(.dark)` only — which still matches when no class is
+set, so the no-JS default is light.
+
+## Theming
+
+`components/theme-provider.tsx` wraps `next-themes` with the hub's exact
+configuration: `attribute="class"`, `defaultTheme="dark"`, `enableSystem`,
+`disableTransitionOnChange`. `components/shell/ThemeToggle.tsx` is the sun/moon
+crossfade from the hub's `TopActions`.
+
+The toggle reads `resolvedTheme` only inside its click handler. The icons
+themselves are swapped by the `dark:` variant in CSS, so the server-rendered
+markup is already correct and no mounted-flag guard is needed.
 
 ## Application shell
 
-`components/shell/AppShell.tsx` — left sidebar (`md:` and up) or bottom tab bar (mobile), listing only the routes the signed-in user's permission map actually allows (`navFor()` in `lib/rbac-catalog.ts`). Branch devices are assumed to skew mobile/tablet, hence the bottom-tab-first mobile treatment rather than a hamburger menu.
+`components/shell/AppShell.tsx` — a 232px sidebar at `lg` and up (same width as
+the Portal Hub, so switching between the two apps does not shift the content
+column), plus a sticky 56px top bar at every size carrying the page title, the
+theme toggle and the account menu.
 
-The mobile bar (`components/shell/MobileTabBar.tsx`) caps at four tabs plus a **More** sheet (`splitNavForMobile()`): an admin qualifies for six destinations, and six tabs edge-to-edge at 375px is unreadable. Ordering is declared once via `NavItem.priority`. The bar carries `env(safe-area-inset-bottom)` padding so it clears the iOS home indicator in standalone PWA mode.
+The sidebar breakpoint is `lg`, not `md`: at `md` the sidebar plus a timesheet's
+day columns left nothing readable.
+
+- **Nav rows** (`NavLink.tsx`, sidebar variant) use the hub's `NavItem`
+  treatment — `h-10 rounded-[11px] text-[13px]`, and an active row is a gold
+  *surface* with a hairline border and inset glow (`bg-primary-surface`,
+  `border-primary/20`, `shadow-selected`), not a solid fill.
+- **Account menu** (`UserMenu.tsx`) is a dropdown with the avatar, name, email,
+  role badge and branch, plus links to the profile and sign-out. It closes on
+  outside-click and Escape — on a shared kiosk, leaving someone's name and
+  branch on screen for the next person is the failure mode worth avoiding.
+- **Mobile** keeps the bottom tab bar (four destinations plus a *More* sheet,
+  `env(safe-area-inset-bottom)` padding). The separate scrolling top nav row was
+  removed: it duplicated the bottom bar and cost a band of vertical space on
+  exactly the devices with least of it.
+- **Page title** (`PageTitle.tsx`) is derived from the route rather than passed
+  down, so a new page cannot forget to set it — worst case is the generic
+  fallback, never a stale title from the previous page.
+
+## Auth pages
+
+`app/(auth)/layout.tsx` is a split layout: the Portal Hub's own Attendance card
+artwork (`public/hero-attendance.png`) fills the left half above `lg` under a
+bottom-up scrim, with the form on the right. Arriving here from the hub's
+Attendance card therefore lands on the same image. Below `lg` the artwork is
+dropped entirely — on a branch phone the form should own the screen.
 
 ## The dial (`components/TimeDial.tsx` + `components/clock-dial.css`)
 

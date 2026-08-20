@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 // Self-hosted rather than next/font/google. The Google Fonts fetch happens at
@@ -39,7 +40,13 @@ export const metadata: Metadata = {
   description: APP_DESCRIPTION,
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/logo-mark.png", type: "image/png" }],
+    // favicon.svg first so modern browsers get the crisp vector; .ico is the
+    // fallback and is what Windows pins/taskbar shortcuts actually read.
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: [{ url: "/favicon.ico" }],
     apple: [{ url: "/logo-mark.png", type: "image/png" }],
   },
   appleWebApp: {
@@ -83,7 +90,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           cannot fix from here. It is deliberately NOT applied any deeper —
           inside the app a mismatch is our bug and should stay loud. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        {/* defaultTheme="dark" matches the hub. enableSystem means an untouched
+            install still follows the OS; once someone uses the toggle their
+            choice is remembered. disableTransitionOnChange stops every themed
+            element animating its colour at once when switching. */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

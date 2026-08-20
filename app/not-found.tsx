@@ -9,12 +9,13 @@ import { buttonVariants } from '@/components/ui/button'
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-5 px-6 text-center">
-      <div className="flex items-center gap-2">
-        <Image src="/logo-mark.png" alt="" width={28} height={28} className="rounded-md" />
-        <span className="bg-gradient-to-r from-[#AB8704] to-[#FDEC06] bg-clip-text text-sm font-semibold text-transparent">
-          Citywalk Attendance
-        </span>
-      </div>
+      <Image
+        src="/logo-wordmark.png"
+        alt="Citywalk"
+        width={158}
+        height={53}
+        className="h-auto w-[130px] dark:brightness-0 dark:invert"
+      />
 
       <MapPinOff className="h-9 w-9 text-muted-foreground" strokeWidth={1.6} aria-hidden="true" />
 

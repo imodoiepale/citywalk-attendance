@@ -1,89 +1,162 @@
 @import "tailwindcss";
 
-:root {
-  /* Citywalk light theme — ported from citywalk-delivery-management-system */
-  --background: oklch(0.97 0.002 250);
-  --foreground: oklch(0.21 0.006 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.006 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.006 250);
-  --primary: oklch(0.64 0.13 90);
-  --primary-foreground: oklch(0.16 0.006 92);
-  --primary-strong: oklch(0.53 0.108 90);
-  --secondary: oklch(0.965 0.003 250);
-  --secondary-foreground: oklch(0.21 0.006 250);
-  --muted: oklch(0.965 0.003 250);
-  --muted-foreground: oklch(0.55 0.008 250);
-  --accent: oklch(0.965 0.038 95);
-  --accent-foreground: oklch(0.53 0.108 90);
-  --destructive: oklch(0.58 0.2 27);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.92 0.004 250);
-  --input: oklch(0.92 0.004 250);
-  --ring: oklch(0.64 0.13 90);
+/* Citywalk Attendance — design tokens.
+ *
+ * Values are ported verbatim from citywalk-portals-hub so the two apps read as
+ * one product. The hub is Tailwind v3 with a tailwind.config.ts; this app is
+ * v4 CSS-first, so the *values* are shared but the plumbing is not — tokens are
+ * registered in @theme inline below instead of in a config file.
+ *
+ * Dark mode is class-based, not a media query. next-themes resolves "system"
+ * to an explicit .dark/.light class before paint, which is what makes a manual
+ * toggle possible at all; a bare prefers-color-scheme rule cannot be overridden
+ * by the user. Authored dark-first, matching the hub. */
 
-  --brand-gold: oklch(0.927 0.195 104);
-  --brand-ink: oklch(0.16 0.006 250);
-  --brand-red: oklch(0.574 0.232 27.5);
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --success: oklch(0.6 0.163 155);
-  --success-strong: oklch(0.51 0.126 155);
-  --warning: oklch(0.76 0.15 75);
+.dark {
+  --background: #070809;
+  --background-raised: #0d0f10;
+  --card: #101214;
+  --card-hover: #15181a;
+  --card-soft: #121416;
+  --sidebar: #08090a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --foreground: #f5f6f7;
+  --card-foreground: #f5f6f7;
+  --popover: #101214;
+  --popover-foreground: #f5f6f7;
+  --muted-foreground: #a9adb2;
+  --muted-foreground-2: #747a80;
 
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05);
-  --shadow-card-hover: 0 4px 12px rgb(16 24 40 / 0.08);
-  --radius: 0.75rem;
+  --primary: #ffd000;
+  --primary-foreground: #14110a;
+  --primary-strong: #b58b00;
+  --primary-soft: #e6b300;
+  --primary-surface: rgba(255, 208, 0, 0.1);
+
+  --destructive: #e60012;
+  --destructive-foreground: #f5f6f7;
+  --success: #2ac769;
+  --success-strong: #2ac769;
+  --warning: #f5a524;
+  --info: #45a7ff;
+
+  --secondary: #1a1c1f;
+  --secondary-foreground: #f5f6f7;
+  --muted: #15181a;
+  --accent: rgba(255, 208, 0, 0.1);
+  --accent-foreground: #ffd000;
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #ffd000;
+
+  --brand-gold: #ffd000;
+  --brand-ink: #08090a;
+  --brand-red: #e60012;
+
+  --icon-tile-bg: #202326;
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 14px 32px rgba(0, 0, 0, 0.22);
+  --shadow-card-hover: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 20px 44px rgba(0, 0, 0, 0.32);
+  --shadow-selected: 0 0 0 1px rgba(255, 208, 0, 0.22) inset, 0 8px 28px rgba(189, 145, 0, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.17 0.004 250);
-    --foreground: oklch(0.94 0.004 250);
-    --card: oklch(0.21 0.005 250);
-    --card-foreground: oklch(0.94 0.004 250);
-    --popover: oklch(0.21 0.005 250);
-    --popover-foreground: oklch(0.94 0.004 250);
-    --primary: oklch(0.84 0.17 92);
-    --primary-foreground: oklch(0.16 0.006 92);
-    --primary-strong: oklch(0.85 0.172 92);
-    --secondary: oklch(0.26 0.006 250);
-    --secondary-foreground: oklch(0.94 0.004 250);
-    --muted: oklch(0.26 0.006 250);
-    --muted-foreground: oklch(0.66 0.008 250);
-    --accent: oklch(0.26 0.006 250);
-    --accent-foreground: oklch(0.84 0.17 92);
-    --destructive: oklch(0.6 0.2 27);
-    --destructive-foreground: oklch(0.98 0 0);
-    --border: oklch(0.3 0.006 250);
-    --input: oklch(0.3 0.006 250);
-    --ring: oklch(0.84 0.17 92);
+/* Light. Deliberately NOT a bare `:root` as well: `:root` and `.dark` have the
+ * same specificity, so a `:root` block placed after `.dark` silently wins and
+ * the page renders light while the dark class is applied. `:root:not(.dark)`
+ * still matches when no class is set at all, so the no-JS default is light. */
+:root:not(.dark) {
+  --background: #f2f1ed;
+  --background-raised: #faf9f6;
+  --card: #fbfaf7;
+  --card-hover: #ffffff;
+  --card-soft: #f7f6f2;
+  --sidebar: #f7f6f2;
+  --border: rgba(28, 26, 22, 0.07);
+  --border-strong: rgba(28, 26, 22, 0.12);
+  --foreground: #1c1f22;
+  --card-foreground: #1c1f22;
+  --popover: #fbfaf7;
+  --popover-foreground: #1c1f22;
+  --muted-foreground: #6b7278;
+  --muted-foreground-2: #949a9f;
 
-    --brand-gold: oklch(0.927 0.195 104);
-    --brand-ink: oklch(0.16 0.006 250);
-    --brand-red: oklch(0.68 0.2 27.5);
-  }
+  --primary: #d7a900;
+  --primary-foreground: #14110a;
+  --primary-strong: #9e7b00;
+  --primary-soft: #d7a900;
+  --primary-surface: #fbf3d6;
+
+  --destructive: #e60012;
+  --destructive-foreground: #ffffff;
+  --success: #1fa85b;
+  --success-strong: #178045;
+  --warning: #b26b00;
+  --info: #3188e8;
+
+  --secondary: #efeee9;
+  --secondary-foreground: #1c1f22;
+  --muted: #efeee9;
+  --accent: #fbf3d6;
+  --accent-foreground: #9e7b00;
+  --input: rgba(28, 26, 22, 0.1);
+  --ring: #d7a900;
+
+  --brand-gold: #d7a900;
+  --brand-ink: #1c1f22;
+  --brand-red: #e60012;
+
+  --icon-tile-bg: #fbf3d6;
+
+  --shadow-card: 0 1px 2px rgba(28, 26, 22, 0.03), 0 10px 24px rgba(28, 26, 22, 0.05);
+  --shadow-card-hover: 0 2px 6px rgba(28, 26, 22, 0.05), 0 12px 26px rgba(28, 26, 22, 0.07);
+  --shadow-selected: 0 0 0 1px rgba(215, 169, 0, 0.28) inset, 0 6px 18px rgba(158, 123, 0, 0.1);
+}
+
+:root {
+  --chart-1: #0ca30c;
+  --chart-2: #4a3aa7;
+  --chart-3: #eda100;
+  --chart-4: #2a78d6;
+  --chart-5: #d03b3b;
+
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.625rem;
+  --radius: 0.875rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.375rem;
+
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-raised: var(--background-raised);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-card-hover: var(--card-hover);
+  --color-card-soft: var(--card-soft);
+  --color-sidebar: var(--sidebar);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-surface: var(--primary-surface);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-2: var(--muted-foreground-2);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-brand-gold: var(--brand-gold);
@@ -92,9 +165,22 @@
   --color-success: var(--success);
   --color-success-strong: var(--success-strong);
   --color-warning: var(--warning);
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --color-info: var(--info);
+  --color-icon-tile: var(--icon-tile-bg);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --ease-standard: var(--ease-standard);
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -102,10 +188,20 @@
   border-color: var(--border);
 }
 
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  /* Matching the hub: Inter's alternate 1 and disambiguated glyphs. This is a
+     timesheet app — a 1 that cannot be mistaken for an l is worth having. */
+  font-feature-settings: "cv11", "ss01";
 }
 
 .shadow-card {
@@ -114,4 +210,21 @@ body {
 
 .shadow-card-hover {
   box-shadow: var(--shadow-card-hover);
+}
+
+.shadow-selected {
+  box-shadow: var(--shadow-selected);
+}
+
+/* The dial is authored against a dark disc in both themes, so its internals
+   keep their own colours; only the page around it follows the theme. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

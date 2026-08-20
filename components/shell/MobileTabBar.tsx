@@ -29,11 +29,11 @@ export default function MobileTabBar({
     <>
       {isOpen ? (
         <div
-          className="fixed inset-0 z-30 bg-brand-ink/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-brand-ink/60 backdrop-blur-sm lg:hidden"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-border bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border bg-popover p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-2 flex items-center justify-between">
@@ -56,7 +56,7 @@ export default function MobileTabBar({
         </div>
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
         {tabs.map((item) => (
           <NavLink
             key={item.href}
@@ -74,7 +74,7 @@ export default function MobileTabBar({
             onClick={() => setIsOpen((open) => !open)}
             className={cn(
               'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors',
-              isOpen || overflowActive ? 'text-primary-strong' : 'text-muted-foreground'
+              isOpen || overflowActive ? 'text-primary' : 'text-muted-foreground'
             )}
           >
             <MoreHorizontal

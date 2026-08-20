@@ -34,8 +34,8 @@ export default function WeeklyProgressRing({
         />
         <defs>
           <linearGradient id="weekly-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#AB8704" />
-            <stop offset="100%" stopColor="#FDEC06" />
+            <stop offset="0%" stopColor="var(--primary-strong)" />
+            <stop offset="100%" stopColor="var(--primary)" />
           </linearGradient>
         </defs>
       </svg>
