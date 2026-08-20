@@ -28,6 +28,13 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import {
+  GRANULARITIES,
+  bucketHours,
+  groupKeysFor,
+  type Granularity,
+} from '@/lib/reports/grouping'
 import { cn } from '@/lib/utils'
 
 // TanStack Table v9 (not v8): the table is built with useTable, and every
@@ -63,21 +70,23 @@ function formatHours(value: number): string {
   return value === 0 ? '·' : value.toFixed(1)
 }
 
-function dayHeader(dateKey: string): string {
-  const date = new Date(`${dateKey}T00:00:00Z`)
-  const weekday = date.toLocaleDateString('en-KE', { weekday: 'narrow', timeZone: 'UTC' })
-  return `${weekday}${Number(dateKey.slice(8, 10))}`
-}
-
 export default function TimesheetTable({
   rows,
   dateKeys,
+  granularity,
+  onGranularityChange,
 }: {
   rows: TimesheetTableRow[]
   dateKeys: string[]
+  /** Owned by the URL so the export route sees the same value. */
+  granularity: Granularity
+  onGranularityChange: (next: Granularity) => void
 }) {
   const [globalFilter, setGlobalFilter] = useState('')
   const [showDayColumns, setShowDayColumns] = useState(true)
+  // Buckets are a pure regrouping of the same per-day hours, so the totals are
+  // identical at every granularity — a roll-up that changed them would be wrong.
+  const buckets = useMemo(() => groupKeysFor(dateKeys, granularity), [dateKeys, granularity])
 
   const columns = useMemo(() => {
     const helper = createColumnHelper<typeof features, TimesheetTableRow>()
@@ -85,24 +94,27 @@ export default function TimesheetTable({
       helper.accessor('fullName', { id: 'fullName', header: 'Employee' }),
       helper.accessor('branchName', { id: 'branchName', header: 'Branch' }),
       helper.accessor((row) => row.jobTitle ?? '', { id: 'jobTitle', header: 'Job title' }),
-      ...dateKeys.map((key) =>
-        helper.accessor((row) => row.days[key] ?? 0, {
-          id: `day:${key}`,
-          header: dayHeader(key),
+      ...buckets.map((bucket) =>
+        helper.accessor((row) => bucketHours(row.days, bucket), {
+          id: `day:${bucket.key}`,
+          header: bucket.label,
         })
       ),
       helper.accessor('daysWorked', { id: 'daysWorked', header: 'Days' }),
       helper.accessor('overtimeHours', { id: 'overtimeHours', header: 'Overtime' }),
       helper.accessor('totalHours', { id: 'totalHours', header: 'Total' }),
     ])
-  }, [dateKeys])
+  }, [buckets])
 
   // A month of day columns is unreadable on a laptop, let alone a phone —
   // collapsing them leaves the Days/Overtime/Total summary, which is what most
   // people are actually reading.
   const columnVisibility = useMemo(
-    () => (showDayColumns ? {} : Object.fromEntries(dateKeys.map((key) => [`day:${key}`, false]))),
-    [showDayColumns, dateKeys]
+    () =>
+      showDayColumns
+        ? {}
+        : Object.fromEntries(buckets.map((bucket) => [`day:${bucket.key}`, false])),
+    [showDayColumns, buckets]
   )
 
   const data = rows.length > 0 ? rows : EMPTY_ROWS
@@ -134,14 +146,31 @@ export default function TimesheetTable({
             className="h-8 pl-8 text-xs"
           />
         </div>
+        <Select
+          aria-label="Column grouping"
+          value={granularity}
+          onChange={(event) => onGranularityChange(event.target.value as Granularity)}
+          className="h-8 w-32 text-xs"
+        >
+          {GRANULARITIES.map((option) => (
+            <option key={option.value} value={option.value}>
+              Per {option.label.toLowerCase()}
+            </option>
+          ))}
+        </Select>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => setShowDayColumns((shown) => !shown)}
+          onClick={() => {
+            // Hiding day columns rolls up to weeks rather than simply hiding
+            // them — the totals are what people wanted, not blank space.
+            if (granularity === 'day') onGranularityChange('week')
+            else setShowDayColumns((shown) => !shown)
+          }}
         >
           <Columns3 className="h-3.5 w-3.5" />
-          {showDayColumns ? 'Hide days' : 'Show days'}
+          {granularity === 'day' ? 'Roll up to weeks' : showDayColumns ? 'Hide columns' : 'Show columns'}
         </Button>
       </div>
 
@@ -243,10 +272,10 @@ export default function TimesheetTable({
                 )
               }
               if (id.startsWith('day:')) {
-                const key = id.slice(4)
+                const bucket = buckets.find((b) => `day:${b.key}` === id)
                 return (
                   <TableCell key={id} className="text-right tabular-nums">
-                    {formatHours(sumOf((row) => row.days[key] ?? 0))}
+                    {formatHours(bucket ? sumOf((row) => bucketHours(row.days, bucket)) : 0)}
                   </TableCell>
                 )
               }

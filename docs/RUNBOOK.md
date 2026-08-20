@@ -31,7 +31,28 @@ Checklist:
 ## Rotating credentials
 
 - **Supabase anon/service-role keys**: rotate in the Supabase dashboard (Project Settings → API), then update the env var everywhere it's set (local `.env.local`, hosting provider). The anon key is public by design (it's shipped to the browser) — rotating it doesn't require notifying anyone, just redeploying.
-- **A user's password**: they can self-serve from **Forgot password?** on the sign-in page, which emails a link to `/callback`, which establishes a session and drops them on `/set-password`.
+- **A user's password**: there are two paths.
+  - *Forgotten it* (signed out): **Forgot password?** on the sign-in page emails a link to
+    `/callback`, which establishes a session and drops them on `/set-password`.
+  - *Knows it, wants to change it* (signed in): the **Password** card on `/me`. This one
+    re-checks the current password before applying the change, because a session left open
+    on a shared branch terminal would otherwise let a passer-by take the account.
+
+### Where recovery emails point
+
+The link in a recovery email is absolute, so it depends on configuration rather than on the
+request that triggered it. Two things must agree, or people get a link to `localhost`:
+
+1. `NEXT_PUBLIC_SITE_URL` in the Vercel project — currently
+   `https://citywalk-attendance.vercel.app`. Falls back to the Vercel production domain, then
+   to the request host, so local development still works with the variable unset.
+2. The Supabase **URL Configuration**: `site_url` plus a **Redirect URLs** allow list entry.
+   Supabase silently rejects any `redirectTo` outside the allow list and substitutes
+   `site_url` — which is exactly how these links end up on localhost.
+
+Deliberately *not* taken from the browser: the origin used to be posted back in a hidden form
+field, which meant anyone could have Supabase mail a recovery link aimed at a host they owned.
+See `lib/site-url.ts`.
   - This depends on email actually being delivered. The project has **no custom SMTP configured**, so it falls back to Supabase's built-in sender, which is rate-limited to a handful of messages an hour and is not intended for production. Configure SMTP (Authentication → Emails → SMTP Settings) before relying on this.
   - To reset someone without email at all: Supabase Dashboard → Authentication → Users → the account → *Generate link* (recovery), then hand them the link directly. `/callback` accepts both the `token_hash` form those links use and the PKCE `code` form the in-app flow produces.
 

@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { headers } from 'next/headers'
 import { requestPasswordResetAction } from '@/app/(auth)/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,14 +10,6 @@ export default async function ForgotPasswordPage({
   searchParams: Promise<{ error?: string }>
 }) {
   const params = await searchParams
-
-  // The reset link has to point back at whichever host this is actually being
-  // served from — localhost in dev, the real domain in production — so the
-  // origin is read from the request rather than hardcoded.
-  const headerList = await headers()
-  const host = headerList.get('host') ?? 'localhost:3000'
-  const protocol = host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https'
-  const origin = `${protocol}://${host}`
 
   return (
     <div className="space-y-4">
@@ -36,7 +27,6 @@ export default async function ForgotPasswordPage({
       ) : null}
 
       <form action={requestPasswordResetAction} className="space-y-3">
-        <input type="hidden" name="origin" value={origin} />
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
           <Input id="email" name="email" type="email" required autoComplete="email" />

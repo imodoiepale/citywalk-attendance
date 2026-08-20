@@ -1,5 +1,6 @@
 import 'server-only'
 import type { Timesheet, TimesheetRow } from '@/lib/reports/timesheets'
+import { bucketHours, groupKeysFor, type Granularity } from '@/lib/reports/grouping'
 
 // The single flattening step every export format shares. XLSX, PDF and CSV all
 // consume this — so a column added here appears in all three, and none of them
@@ -25,25 +26,26 @@ export interface ExportTable {
   totals: (string | number)[]
 }
 
-function shortDayHeader(dateKey: string): string {
-  const date = new Date(`${dateKey}T00:00:00Z`)
-  const weekday = date.toLocaleDateString('en-KE', { weekday: 'short', timeZone: 'UTC' })
-  return `${weekday} ${dateKey.slice(8, 10)}`
-}
-
 function round1(value: number): number {
   return Math.round(value * 10) / 10
 }
 
-export function buildExportTable(timesheet: Timesheet): ExportTable {
+export function buildExportTable(
+  timesheet: Timesheet,
+  /** Must match what the screen shows, or a download disagrees with the page. */
+  granularity: Granularity = 'day'
+): ExportTable {
+  const buckets = groupKeysFor(timesheet.dateKeys, granularity)
+
   const columns: ExportColumn[] = [
     { key: 'name', header: 'Employee', width: 26, align: 'left', numeric: false },
     { key: 'branch', header: 'Branch', width: 18, align: 'left', numeric: false },
     { key: 'jobTitle', header: 'Job title', width: 18, align: 'left', numeric: false },
-    ...timesheet.dateKeys.map((key) => ({
-      key,
-      header: shortDayHeader(key),
-      width: 8,
+    ...buckets.map((bucket) => ({
+      key: bucket.key,
+      // A week or month column carries a longer label, so it needs the room.
+      header: granularity === 'day' ? bucket.title.slice(0, 10) : bucket.label,
+      width: granularity === 'day' ? 8 : 10,
       align: 'right' as const,
       numeric: true,
     })),
@@ -56,7 +58,7 @@ export function buildExportTable(timesheet: Timesheet): ExportTable {
     row.fullName,
     row.branchName,
     row.jobTitle ?? '',
-    ...timesheet.dateKeys.map((key) => round1(row.days[key] ?? 0)),
+    ...buckets.map((bucket) => round1(bucketHours(row.days, bucket))),
     row.daysWorked,
     round1(row.overtimeHours),
     round1(row.totalHours),
@@ -73,8 +75,8 @@ export function buildExportTable(timesheet: Timesheet): ExportTable {
     })
   }
 
-  const dayTotals = timesheet.dateKeys.map((key) =>
-    round1(timesheet.rows.reduce((sum, row) => sum + (row.days[key] ?? 0), 0))
+  const dayTotals = buckets.map((bucket) =>
+    round1(timesheet.rows.reduce((sum, row) => sum + bucketHours(row.days, bucket), 0))
   )
 
   const totals: (string | number)[] = [

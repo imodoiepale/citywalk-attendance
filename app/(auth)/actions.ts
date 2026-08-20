@@ -2,6 +2,8 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteUrl } from '@/lib/site-url'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function signInAction(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim()
@@ -95,14 +97,57 @@ export async function requestPasswordResetAction(formData: FormData) {
   }
 
   const supabase = await createClient()
-  const origin = String(formData.get('origin') ?? '')
+  // Resolved server-side, never from the submitted form: see lib/site-url.ts.
   // Supabase appends token_hash/type to this URL; /callback verifies it
   // server-side via verifyOtp.
+  const siteUrl = await getSiteUrl()
   await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/callback`,
+    redirectTo: `${siteUrl}/callback`,
   })
 
   // Always report the same thing, sent or not: telling an anonymous visitor
   // whether an address has an account here is an account-enumeration leak.
   redirect('/login?notice=reset-sent')
+}
+
+/**
+ * Changes the password of the already-signed-in user.
+ *
+ * Distinct from setPasswordAction, which exists to complete a recovery link:
+ * there the mailed token is the proof of identity. Here the person is simply
+ * signed in, and a session left open on a shared branch terminal is exactly the
+ * situation where an unverified change would let a passer-by take the account.
+ * So the current password is checked first, against a throwaway client whose
+ * session is never persisted — verifying with the request's own client would
+ * rewrite the auth cookies as a side effect of a mere password check.
+ */
+export async function changePasswordAction(formData: FormData) {
+  const current = String(formData.get('currentPassword') ?? '')
+  const password = String(formData.get('password') ?? '')
+  const confirm = String(formData.get('confirm') ?? '')
+
+  if (password.length < 8) redirect('/me?error=weak-password')
+  if (password !== confirm) redirect('/me?error=mismatch')
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user?.email) redirect('/login?error=link-expired')
+
+  const verifier = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  )
+  const { error: wrongPassword } = await verifier.auth.signInWithPassword({
+    email: user.email,
+    password: current,
+  })
+  if (wrongPassword) redirect('/me?error=wrong-password')
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) redirect(`/me?error=${encodeURIComponent(error.message)}`)
+
+  redirect('/me?notice=password-changed')
 }

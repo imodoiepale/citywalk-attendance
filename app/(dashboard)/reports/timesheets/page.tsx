@@ -7,7 +7,8 @@ import { canAtLeast } from '@/lib/rbac-catalog'
 import { createClient } from '@/lib/supabase/server'
 import { loadTimesheet, type GroupBy } from '@/lib/reports/timesheets'
 import { isPeriodPreset, resolvePeriod } from '@/lib/reports/periods'
-import TimesheetTable from '@/components/reports/TimesheetTable'
+import { isGranularity } from '@/lib/reports/grouping'
+import TimesheetGrid from '@/components/reports/TimesheetGrid'
 import TimesheetToolbar from '@/components/reports/TimesheetToolbar'
 
 export default async function TimesheetsPage({
@@ -17,6 +18,7 @@ export default async function TimesheetsPage({
     branch?: string
     period?: string
     groupBy?: string
+    granularity?: string
     from?: string
     to?: string
   }>
@@ -39,6 +41,7 @@ export default async function TimesheetsPage({
     to: params.to,
   })
   const groupBy: GroupBy = params.groupBy === 'name' ? 'name' : 'branch'
+  const granularity = isGranularity(params.granularity) ? params.granularity : 'day'
 
   // Same pinning rule as the export route: only org-wide viewers may widen the
   // scope past their own branch.
@@ -91,19 +94,22 @@ export default async function TimesheetsPage({
           />
         </Suspense>
 
-        <TimesheetTable
-          rows={timesheet.rows.map((row) => ({
-            userId: row.userId,
-            fullName: row.fullName,
-            branchName: row.branchName,
-            jobTitle: row.jobTitle,
-            days: row.days,
-            daysWorked: row.daysWorked,
-            overtimeHours: row.overtimeHours,
-            totalHours: row.totalHours,
-          }))}
-          dateKeys={timesheet.dateKeys}
-        />
+        <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-secondary" />}>
+          <TimesheetGrid
+            rows={timesheet.rows.map((row) => ({
+              userId: row.userId,
+              fullName: row.fullName,
+              branchName: row.branchName,
+              jobTitle: row.jobTitle,
+              days: row.days,
+              daysWorked: row.daysWorked,
+              overtimeHours: row.overtimeHours,
+              totalHours: row.totalHours,
+            }))}
+            dateKeys={timesheet.dateKeys}
+            granularity={granularity}
+          />
+        </Suspense>
       </div>
     </div>
   )

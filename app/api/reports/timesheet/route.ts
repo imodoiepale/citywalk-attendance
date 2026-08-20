@@ -3,6 +3,7 @@ import { canAtLeast } from '@/lib/rbac-catalog'
 import { loadTimesheet, type GroupBy } from '@/lib/reports/timesheets'
 import { isPeriodPreset, resolvePeriod } from '@/lib/reports/periods'
 import { buildExportTable, exportFileStem } from '@/lib/reports/export/shape'
+import { isGranularity } from '@/lib/reports/grouping'
 import { buildCsv } from '@/lib/reports/export/csv'
 import { buildXlsx } from '@/lib/reports/export/xlsx'
 import { buildPdf } from '@/lib/reports/export/pdf'
@@ -66,9 +67,12 @@ export async function GET(request: Request) {
     branchLabel = data?.name ?? user.branchName
   }
 
+  const granularityParam = params.get('granularity') ?? 'day'
+  const granularity = isGranularity(granularityParam) ? granularityParam : 'day'
+
   const timesheet = await loadTimesheet({ branchId, from, to, groupBy, branchLabel })
-  const table = buildExportTable(timesheet)
-  table.subtitle = `${branchLabel} · ${periodLabel} · grouped by ${groupBy}`
+  const table = buildExportTable(timesheet, granularity)
+  table.subtitle = `${branchLabel} · ${periodLabel} · per ${granularity} · grouped by ${groupBy}`
 
   const stem = exportFileStem(timesheet)
 

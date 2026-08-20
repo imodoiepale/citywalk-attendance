@@ -11,7 +11,8 @@
     "verify:pages": "node scripts/verify-pages.mjs .env.local http://localhost:3101",
     "verify:biometric": "node scripts/verify-biometric.mjs .env.local http://localhost:3101",
     "verify:timesheet": "node scripts/verify-timesheet.mjs .env.local http://localhost:3101",
-    "verify:tables": "node scripts/verify-tables.mjs .env.local http://localhost:3101"
+    "verify:tables": "node scripts/verify-tables.mjs .env.local http://localhost:3101",
+    "verify:grouping": "node --experimental-strip-types --no-warnings scripts/verify-grouping.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

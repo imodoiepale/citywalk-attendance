@@ -73,6 +73,12 @@ function analyse(html) {
 const PAGES = [
   '/reports',
   '/reports/timesheets?period=this-month&branch=all',
+  // Each roll-up rebuilds the column set, so header/body alignment has to be
+  // proven at every granularity, not just the default day view.
+  '/reports/timesheets?period=this-month&branch=all&granularity=week',
+  '/reports/timesheets?period=this-month&branch=all&granularity=month',
+  '/reports/timesheets?period=this-month&branch=all&granularity=quarter',
+  '/reports/timesheets?period=this-month&branch=all&granularity=year',
   '/leave/approvals',
   '/attendance/corrections',
   '/admin/users',

@@ -5,6 +5,7 @@ import { getWeeklyHours } from '@/lib/punches/queries'
 import { getMyCorrections } from '@/lib/corrections/queries'
 import { getMyFaceEnrollment } from '@/lib/face/queries'
 import FaceEnrollmentCard from '@/components/face/FaceEnrollmentCard'
+import ChangePasswordCard from '@/components/account/ChangePasswordCard'
 import { ROLE_META } from '@/lib/rbac-catalog'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -28,7 +29,12 @@ const STATUS_VARIANT: Record<string, 'success' | 'destructive' | 'warning' | 'se
   cancelled: 'secondary',
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; notice?: string }>
+}) {
+  const params = await searchParams
   const user = await requireUser()
   const [settings, weeklyHours, corrections, faceEnrollment] = await Promise.all([
     getSettings(),
@@ -67,6 +73,8 @@ export default async function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        <ChangePasswordCard error={params.error} notice={params.notice} />
 
         <FaceEnrollmentCard
           enabled={settings.faceEnabled}
