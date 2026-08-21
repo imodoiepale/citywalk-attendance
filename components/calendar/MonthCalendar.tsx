@@ -8,6 +8,7 @@ interface MonthCalendarProps {
   dailyTargetHours: number
   /** Nairobi date keys the user has approved leave on. */
   leaveDayKeys?: Set<string>
+  onSelectDate?: (dateKey: string) => void
 }
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -19,6 +20,7 @@ export default function MonthCalendar({
   todayKey,
   dailyTargetHours,
   leaveDayKeys,
+  onSelectDate,
 }: MonthCalendarProps) {
   const firstOfMonth = new Date(Date.UTC(year, month - 1, 1))
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate()
@@ -55,6 +57,7 @@ export default function MonthCalendar({
                 isToday={dateKey === todayKey}
                 dailyTargetHours={dailyTargetHours}
                 onLeave={dateKey ? (leaveDayKeys?.has(dateKey) ?? false) : false}
+                onSelect={onSelectDate}
               />
             )
           })}

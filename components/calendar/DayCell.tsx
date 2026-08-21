@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { bucketColor } from '@/lib/calendar-buckets'
 import { DAILY_TARGET_HOURS } from '@/lib/targets'
 
@@ -10,6 +9,7 @@ interface DayCellProps {
   dailyTargetHours?: number
   /** Approved leave covers this day — shown as a corner marker, not a colour swap. */
   onLeave?: boolean
+  onSelect?: (dateKey: string) => void
 }
 
 export default function DayCell({
@@ -19,9 +19,10 @@ export default function DayCell({
   isToday,
   dailyTargetHours = DAILY_TARGET_HOURS,
   onLeave = false,
+  onSelect,
 }: DayCellProps) {
   if (day === null || dateKey === null) {
-    return <div className="aspect-square rounded-lg" />
+    return <div className="aspect-square rounded-md" />
   }
 
   // Half the target is where the tile's fill gets dark enough to need light
@@ -29,10 +30,11 @@ export default function DayCell({
   const isFilled = hours >= dailyTargetHours / 2
 
   return (
-    <Link
-      href={`/calendar/${dateKey}`}
+    <button
+      type="button"
+      onClick={() => dateKey && onSelect?.(dateKey)}
       aria-label={`${dateKey} — ${hours.toFixed(1)} hours worked${onLeave ? ', on approved leave' : ''}`}
-      className="relative flex aspect-square flex-col items-center justify-center gap-0 rounded-md text-[11px] font-medium transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="relative flex aspect-square flex-col items-center justify-center gap-0 rounded-md text-[11px] font-medium transition-all hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       style={{
         backgroundColor: bucketColor(hours, dailyTargetHours),
         boxShadow: isToday
@@ -55,6 +57,6 @@ export default function DayCell({
         />
       )}
       {isToday && <span className="absolute bottom-0.5 h-0.5 w-0.5 rounded-full bg-brand-gold" />}
-    </Link>
+    </button>
   )
 }

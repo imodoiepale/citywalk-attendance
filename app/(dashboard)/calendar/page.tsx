@@ -1,14 +1,11 @@
-import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { requireUser } from '@/lib/auth'
 import { getDailyHoursForMonth, getWeeklyHours } from '@/lib/punches/queries'
 import { getApprovedLeaveDayKeys } from '@/lib/leave/queries'
 import { nairobiMonthRangeUtc } from '@/lib/timezone'
 import { toNairobiDateKey } from '@/lib/timezone'
 import { getSettings } from '@/lib/settings'
-import MonthCalendar from '@/components/calendar/MonthCalendar'
+import CalendarView from '@/components/calendar/CalendarView'
 import WeeklyProgressRing from '@/components/calendar/WeeklyProgressRing'
-import Legend from '@/components/calendar/Legend'
 
 export default async function CalendarPage({
   searchParams,
@@ -42,61 +39,31 @@ export default async function CalendarPage({
   const monthTotal = Array.from(hoursByDay.values()).reduce((sum, h) => sum + h, 0)
 
   return (
-    <div className="h-screen w-full overflow-auto px-3 py-2 sm:px-4 lg:px-6">
-      <div className="flex flex-col gap-2 lg:gap-3">
-        <div className="flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-foreground sm:text-xl">Calendar</h1>
-            <p className="text-xs text-muted-foreground sm:text-sm">Hours by day</p>
+    <div className="h-screen w-full overflow-auto px-2 py-1.5 sm:px-3 lg:px-4">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-bold text-foreground sm:text-lg">Calendar</h1>
+            <p className="text-[11px] text-muted-foreground sm:text-xs">Hours by day</p>
           </div>
-          <div className="hidden lg:block">
+          <div>
             <WeeklyProgressRing hoursThisWeek={weeklyHours} targetHours={settings.weeklyTargetHours} />
           </div>
         </div>
 
-        <div className="lg:hidden">
-          <WeeklyProgressRing hoursThisWeek={weeklyHours} targetHours={settings.weeklyTargetHours} />
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-3 shadow-card">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <Link
-              href={`/calendar?year=${prev.year}&month=${prev.month}`}
-              className="rounded-full border border-border p-1 text-muted-foreground hover:bg-accent"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Link>
-            <div className="flex flex-col items-center">
-              <span className="text-xs font-semibold text-foreground sm:text-sm">{monthLabel}</span>
-              <span className="text-[10px] text-primary-strong sm:text-xs">{monthTotal.toFixed(1)}h</span>
-            </div>
-            {isCurrentMonth ? (
-              <span className="rounded-full border border-transparent p-1 text-muted-foreground/30">
-                <ChevronRight className="h-3.5 w-3.5" />
-              </span>
-            ) : (
-              <Link
-                href={`/calendar?year=${next.year}&month=${next.month}`}
-                className="rounded-full border border-border p-1 text-muted-foreground hover:bg-accent"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            )}
-          </div>
-
-          <MonthCalendar
-            year={year}
-            month={month}
-            hoursByDay={hoursByDay}
-            todayKey={toNairobiDateKey(new Date().toISOString())}
-            dailyTargetHours={settings.dailyTargetHours}
-            leaveDayKeys={leaveDayKeys}
-          />
-
-          <div className="mt-2">
-            <Legend dailyTargetHours={settings.dailyTargetHours} />
-          </div>
-        </div>
+        <CalendarView
+          year={year}
+          month={month}
+          hoursByDay={hoursByDay}
+          todayKey={toNairobiDateKey(new Date().toISOString())}
+          dailyTargetHours={settings.dailyTargetHours}
+          leaveDayKeys={leaveDayKeys}
+          monthLabel={monthLabel}
+          monthTotal={monthTotal}
+          prev={prev}
+          next={next}
+          isCurrentMonth={isCurrentMonth}
+        />
       </div>
     </div>
   )
