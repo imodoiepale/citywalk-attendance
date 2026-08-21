@@ -119,10 +119,13 @@ Reworked from a meditation countdown into a live shift clock:
 Ported from DepthMe's `MeditationCalendar.tsx` — the cleaner of its two calendar implementations (`ProgressScreen.tsx` has a similar but more entangled version).
 
 - **Month grid**: hand-rolled `(number | null)[][]` week grid (pad `firstWeekday` nulls, chunk to weeks of 7, pad the trailing row) — no calendar library.
-- **Day cell** (`DayCell.tsx`): `aspect-square rounded-lg` tile, 4-step discrete colour bucket by hours worked (`lib/calendar-buckets.ts`: 0h → muted, <4h → pale gold, 4–8h → gold, 8h+ → amber), today = gold ring + dot, `Xh` badge — the same "filled tile, not a per-day ring" idiom DepthMe uses for minutes meditated, just re-bucketed for hours worked and re-coloured to the Citywalk palette (gold/ink instead of purple).
+- **Day cell** (`DayCell.tsx`): a neutral `rounded-xl` tile — day number top-left, hours below it, and a thin bar showing progress towards the daily target (capped at 100%, so a full bar reads as "target met"). Today is a filled gold disc behind the number rather than a ring around the tile. Approved leave is a gold dot, top-right.
+  - The old 4-step colour heatmap (`lib/calendar-buckets.ts`, ported from DepthMe) **has been removed**. Tinting the whole tile meant the hours figure had to sit on a background of unpredictable darkness, and the tile carried no sense of how the day compared with its target — a bar says both, and says it in one accent colour.
+  - `aspect-square` now applies **only below `lg`**. A square cell in a seven-column grid ties its height to the viewport's *width*, which on a wide monitor made the month roughly twice as tall as the screen. Above `lg` the six grid rows divide the available height instead, so the month always fits exactly.
 - **Month nav**: query-param links (`?year=&month=`), not client state — the whole `/calendar` page is a Server Component, no client-side fetch hook needed. Next disabled at the current month (can't navigate into the future), same as DepthMe's `MeditationCalendar`.
 - **Weekly progress ring** (`WeeklyProgressRing.tsx`): the same `stroke-dasharray`/`-rotate-90` SVG technique as the dial, scaled down, showing hours in the last 7 days against a 40h target.
-- **Legend**: Less → 4 swatches → More, plus a "today" swatch — directly reused from DepthMe's heatmap legend pattern.
+- **Legend** (`Legend.tsx`): today, approved leave, and the target bar. The Less → More swatch scale went with the heatmap; a legend for a number the reader can already read is noise.
+- **Day detail**: a day opens as a slide-in sheet over the grid (right on desktop, bottom sheet on mobile) via a parallel `@sheet` slot plus an intercepting route, while a hard load of `/calendar/[date]` still renders the full page. Both render the same `DayDetail` Server Component — necessary, not merely tidy, since every query it makes is `server-only` and a client panel could not fetch them.
 
 ## Component inventory
 

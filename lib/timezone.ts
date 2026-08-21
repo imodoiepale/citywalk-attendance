@@ -42,3 +42,24 @@ export function nairobiDayRangeUtc(dateKey: string): { start: Date; end: Date } 
   const start = new Date(`${dateKey}T00:00:00.000Z`).getTime() - NAIROBI_OFFSET_MS
   return { start: new Date(start), end: new Date(start + 24 * 60 * 60 * 1000) }
 }
+
+/**
+ * "Friday, 15 August 2026" for a YYYY-MM-DD key.
+ *
+ * Parsed at UTC noon and formatted in UTC so the rendered weekday always
+ * matches the key itself — reading it back in a local timezone could shift the
+ * date across midnight and label the wrong day.
+ *
+ * Lives here rather than beside the day page because both the full page and
+ * the day sheet title need it, and the sheet is a Client Component that must
+ * not pull a server-only module into its bundle.
+ */
+export function formatDayLabel(dateKey: string): string {
+  return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString('en-KE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}

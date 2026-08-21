@@ -318,3 +318,39 @@ body {
 .driver-popover.citywalk-tour .driver-popover-arrow-side-right {
   border-right-color: var(--popover);
 }
+
+/* Sheet entrance.
+ *
+ * Keyframes rather than a transition flipped from JS: a transition needs the
+ * element to have been painted in its "from" state first, which means waiting
+ * a frame via requestAnimationFrame — and rAF does not run while the tab is
+ * hidden, so a sheet mounted in a background tab would stay parked off-screen.
+ * An animation just runs when the element is inserted. The exit still uses a
+ * transition, because by then the element is on screen and there is a real
+ * "from" state to leave. */
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

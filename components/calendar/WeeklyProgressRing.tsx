@@ -15,7 +15,7 @@ export default function WeeklyProgressRing({
   const offset = circumference * (1 - progress)
 
   return (
-    <div data-tour="weekly-ring" className="relative mx-auto flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28 lg:h-24 lg:w-24">
+    <div data-tour="weekly-ring" className="relative flex h-24 w-24 shrink-0 items-center justify-center">
       <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90">
         <circle cx="64" cy="64" r={radius} stroke="var(--border)" strokeWidth="10" fill="none" />
         <circle
@@ -40,8 +40,8 @@ export default function WeeklyProgressRing({
         </defs>
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="text-lg font-bold text-foreground sm:text-xl lg:text-lg">{hoursThisWeek.toFixed(1)}h</span>
-        <span className="text-[10px] text-muted-foreground sm:text-xs lg:text-[10px]">of {targetHours}h</span>
+        <span className="text-xl font-bold tabular-nums text-foreground">{hoursThisWeek.toFixed(1)}h</span>
+        <span className="text-[11px] text-muted-foreground">of {targetHours}h</span>
       </div>
     </div>
   )

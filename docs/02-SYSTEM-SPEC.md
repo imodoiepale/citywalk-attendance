@@ -43,7 +43,6 @@ lib/
   settings.ts            reads app_settings (the real source of truth); falls back
                          to targets.ts if the row/table isn't there yet
   corrections/           queries.ts, actions.ts
-  calendar-buckets.ts     hours -> colour bucket for the calendar heatmap
   useShiftClock.ts        shared client 1s tick; accumulates the day's punches for the dial
 supabase/
   migrations/20260819000001_schema.sql   full schema, RLS, RPCs
