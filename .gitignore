@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -19,6 +20,11 @@
 
 # production
 /build
+
+# biometric gateway runtime data
+/gateway/spool/
+/gateway/captures/*
+!/gateway/captures/.gitkeep
 
 # misc
 .DS_Store

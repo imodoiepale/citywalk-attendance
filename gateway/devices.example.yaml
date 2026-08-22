@@ -1,0 +1,29 @@
+# The device inventory. Copy to devices.yaml and edit.
+#
+# `serial` must match biometric_devices.serial_no in the app exactly — that is
+# the join between this file and the punch that ends up on someone's timesheet.
+
+devices:
+  # The EN-K190FTW on the branch LAN.
+  - serial: ENS2025079
+    label: HQ main entrance
+    vendor: ebkn
+    # listen = the terminal pushes to this gateway (preferred: works behind NAT,
+    #          needs no hardware at the branch)
+    # poll   = this gateway dials the terminal (requires running on the LAN)
+    mode: listen
+    host: 192.168.1.150
+    port: 5005
+    timezone: Africa/Nairobi
+    # null  → use whatever the firmware reports, falling back to the direction
+    #         configured on the device row in the app
+    # 'in'  → force every scan to a clock-in, for a reader wired as the entrance
+    direction: null
+
+  # Example of an existing ZKTeco reader migrated onto the gateway.
+  # - serial: TFT500P-0042
+  #   label: Branch 02 exit
+  #   vendor: zkteco
+  #   mode: listen
+  #   timezone: Africa/Nairobi
+  #   direction: out

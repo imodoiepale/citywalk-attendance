@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+# Per-deployment device inventory. devices.example.yaml is the template.
+devices.yaml
+spool/
+captures/*
+!captures/.gitkeep

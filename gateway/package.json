@@ -1,0 +1,25 @@
+{
+  "name": "smart-sentinel-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Biometric device gateway. Speaks to attendance terminals on the LAN, normalises their scans, and forwards them HMAC-signed to the attendance app.",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "capture": "node src/probe/capture.ts",
+    "probe": "node src/probe/poll-probe.ts",
+    "start": "node src/index.ts",
+    "dev": "node --watch src/index.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.9.2"
+  }
+}

@@ -33,7 +33,7 @@ export async function saveDeviceAction(
     return Number.isInteger(n) ? n : null
   }
 
-  const { error } = await supabase.rpc('admin_upsert_device', {
+  const { error } = await supabase.rpc('admin_upsert_device_v2', {
     p_id: String(formData.get('id') ?? '') || null,
     p_serial_no: String(formData.get('serial_no') ?? ''),
     p_name: String(formData.get('name') ?? ''),
@@ -46,6 +46,7 @@ export async function saveDeviceAction(
     p_port: int('port') ?? 4370,
     p_node_id: int('node_id'),
     p_is_active: formData.get('is_active') === 'on',
+    p_vendor: String(formData.get('vendor') ?? 'zkteco'),
   })
 
   if (error) return { error: error.message }
@@ -70,21 +71,22 @@ export async function mapEnrollmentAction(
 
   const deviceUserId = String(formData.get('device_user_id') ?? '').trim()
   const profileId = String(formData.get('profile_id') ?? '')
-  if (!deviceUserId || !profileId) {
-    return { error: 'Pick both an enrollment number and a person.' }
+  const vendor = String(formData.get('vendor') ?? '').trim().toLowerCase()
+  if (!deviceUserId || !profileId || !vendor) {
+    return { error: 'Pick a vendor, enrollment number, and person.' }
   }
 
   const { error } = await supabase.rpc('admin_map_enrollment', {
     p_device_user_id: deviceUserId,
     p_profile_id: profileId,
-    p_vendor: 'zkteco',
+    p_vendor: vendor,
     p_note: String(formData.get('note') ?? '').trim() || null,
   })
   if (error) return { error: error.message }
 
   // Scans that arrived before this person was mapped become real punches now,
   // rather than being lost to the gap between their first scan and being set up.
-  const replayed = await replayUnmatched(deviceUserId)
+  const replayed = await replayUnmatched(deviceUserId, vendor)
 
   revalidatePath('/admin/devices/enrollments')
   revalidatePath('/admin/devices/unmatched')

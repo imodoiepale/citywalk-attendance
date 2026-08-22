@@ -94,6 +94,7 @@ export default async function UnmatchedScansPage() {
                   <MapEnrollmentForm
                     staff={staff}
                     fixedDeviceUserId={scan.externalUserId}
+                    fixedVendor={scan.vendor}
                     label="Assign"
                     compact
                   />

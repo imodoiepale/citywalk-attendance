@@ -8,6 +8,9 @@ export interface DeviceRow {
   serialNo: string
   name: string
   model: string | null
+  vendor: string
+  nodeId: number | null
+  port: number
   purpose: 'attendance' | 'access'
   direction: 'in' | 'out' | 'both'
   isActive: boolean
@@ -31,6 +34,9 @@ export async function listDevices(): Promise<DeviceRow[]> {
     serialNo: row.serial_no,
     name: row.name,
     model: row.model,
+    vendor: row.vendor,
+    nodeId: row.node_id,
+    port: row.port,
     purpose: row.purpose,
     direction: row.direction,
     isActive: row.is_active,
@@ -53,13 +59,14 @@ export interface EnrollmentRow {
   email: string
   branchName: string | null
   note: string | null
+  vendor: string
 }
 
 export async function listEnrollments(): Promise<EnrollmentRow[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('biometric_enrollments')
-    .select('id, device_user_id, profile_id, note, profile:profiles(full_name, email, branch:branches(name))')
+    .select('id, vendor, device_user_id, profile_id, note, profile:profiles(full_name, email, branch:branches(name))')
     .order('device_user_id')
 
   type Embed = { full_name: string; email: string; branch: { name: string } | { name: string }[] | null }
@@ -75,6 +82,7 @@ export async function listEnrollments(): Promise<EnrollmentRow[]> {
       email: profile?.email ?? '',
       branchName: one(profile?.branch ?? null)?.name ?? null,
       note: row.note,
+      vendor: row.vendor,
     }
   })
 }
@@ -86,6 +94,7 @@ export interface UnmatchedScan {
   scans: number
   firstSeen: string
   lastSeen: string
+  vendor: string
 }
 
 /**
@@ -98,7 +107,7 @@ export async function listUnmatchedScans(): Promise<UnmatchedScan[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('biometric_events')
-    .select('external_user_id, device_serial, scanned_at, device:biometric_devices(name)')
+    .select('external_user_id, device_serial, scanned_at, device:biometric_devices(name, vendor)')
     .eq('status', 'unmatched')
     .order('scanned_at', { ascending: false })
     .limit(2000)
@@ -106,7 +115,8 @@ export async function listUnmatchedScans(): Promise<UnmatchedScan[]> {
   const grouped = new Map<string, UnmatchedScan>()
   for (const row of data ?? []) {
     const device = Array.isArray(row.device) ? row.device[0] : row.device
-    const key = `${row.external_user_id}|${row.device_serial}`
+    const vendor = device?.vendor ?? 'generic'
+    const key = `${vendor}|${row.external_user_id}|${row.device_serial}`
     const existing = grouped.get(key)
     if (existing) {
       existing.scans += 1
@@ -120,6 +130,7 @@ export async function listUnmatchedScans(): Promise<UnmatchedScan[]> {
         scans: 1,
         firstSeen: row.scanned_at,
         lastSeen: row.scanned_at,
+        vendor,
       })
     }
   }

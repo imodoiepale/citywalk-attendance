@@ -1,0 +1,83 @@
+# Hostinger Docker Manager application definition.
+#
+# Deploy with Docker Manager -> Compose -> Compose from URL, using the raw URL
+# of this file after it is pushed to GitHub. The remote Git build context means
+# Hostinger receives the complete gateway source, not only this YAML file.
+
+services:
+  gateway:
+    build:
+      context: https://github.com/imodoiepale/citywalk-attendance.git#codex/hostinger-biometric-gateway:gateway
+    restart: unless-stopped
+    environment:
+      SINK: supabase
+      SUPABASE_URL: ${SUPABASE_URL:-https://kntejfukhzgccmqtioag.supabase.co}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set the Supabase service-role key in Hostinger}
+      GATEWAY_HTTP_PORT: 8080
+      SPOOL_DIR: /var/lib/smart-sentinel/spool
+      TZ: ${TZ:-Africa/Nairobi}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      STRICT_SERIALS: ${STRICT_SERIALS:-true}
+      ARCHIVE_RAW: ${ARCHIVE_RAW:-true}
+      CAMS_AUTH_TOKEN: ${CAMS_AUTH_TOKEN:-}
+      CAMS_AUTH_TOKENS: ${CAMS_AUTH_TOKENS:-}
+      CAMS_SECURITY_KEY: ${CAMS_SECURITY_KEY:-}
+      # No host bind file is needed in Docker Manager. Add more entries here
+      # when another terminal is commissioned.
+      DEVICES_YAML: |
+        devices:
+          - serial: ${DEVICE_SERIAL:-ENS2025079}
+            label: ${DEVICE_LABEL:-HQ main entrance}
+            vendor: ${DEVICE_VENDOR:-ebkn}
+            mode: listen
+            timezone: ${TZ:-Africa/Nairobi}
+            direction: ${DEVICE_DIRECTION:-null}
+    volumes:
+      - spool:/var/lib/smart-sentinel/spool
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      GATEWAY_ADDRESS: ${GATEWAY_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    configs:
+      - source: gateway_caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+configs:
+  gateway_caddyfile:
+    content: |
+      {$$GATEWAY_ADDRESS::80} {
+        encode gzip
+        @internal path /status
+        respond @internal 404
+        reverse_proxy gateway:8080
+        log {
+          output file /data/access.log {
+            roll_size 20mb
+            roll_keep 10
+          }
+        }
+      }
+
+volumes:
+  spool:
+  caddy_data:
+  caddy_config:

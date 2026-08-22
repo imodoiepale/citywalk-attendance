@@ -25,11 +25,13 @@ function Submit({ label }: { label: string }) {
 export default function MapEnrollmentForm({
   staff,
   fixedDeviceUserId,
+  fixedVendor,
   label = 'Map',
   compact = false,
 }: {
   staff: { id: string; fullName: string; branchName: string | null }[]
   fixedDeviceUserId?: string
+  fixedVendor?: string
   label?: string
   compact?: boolean
 }) {
@@ -37,6 +39,17 @@ export default function MapEnrollmentForm({
 
   return (
     <form action={formAction} className={compact ? 'flex flex-wrap items-center gap-2' : 'space-y-3'}>
+      {fixedVendor ? (
+        <input type="hidden" name="vendor" value={fixedVendor} />
+      ) : (
+        <Select name="vendor" required defaultValue="zkteco" className={compact ? 'h-8 w-32 text-xs' : ''}>
+          <option value="zkteco">ZKTeco</option>
+          <option value="ebkn">EBKN / EN-K190</option>
+          <option value="cams">Cams</option>
+          <option value="face">Face camera</option>
+          <option value="generic">Generic</option>
+        </Select>
+      )}
       {fixedDeviceUserId ? (
         <input type="hidden" name="device_user_id" value={fixedDeviceUserId} />
       ) : (

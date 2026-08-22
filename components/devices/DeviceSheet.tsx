@@ -80,6 +80,16 @@ function DeviceForm({
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="vendor">Protocol vendor</Label>
+              <Select id="vendor" name="vendor" defaultValue={device?.vendor ?? 'zkteco'}>
+                <option value="zkteco">ZKTeco</option>
+                <option value="ebkn">EBKN / EN-K190</option>
+                <option value="cams">Cams</option>
+                <option value="generic">Generic</option>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="purpose">Purpose</Label>
               <Select
                 id="purpose"
@@ -138,7 +148,7 @@ function DeviceForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="node_id">Node ID</Label>
-              <Input id="node_id" name="node_id" type="number" min="0" defaultValue="" />
+              <Input id="node_id" name="node_id" type="number" min="0" defaultValue={device?.nodeId ?? ''} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ip_address">IP address</Label>
@@ -151,7 +161,7 @@ function DeviceForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="port">Port</Label>
-              <Input id="port" name="port" type="number" min="1" defaultValue="4370" />
+              <Input id="port" name="port" type="number" min="1" defaultValue={device?.port ?? 4370} />
             </div>
           </div>
 

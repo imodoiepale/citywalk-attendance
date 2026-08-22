@@ -1,11 +1,9 @@
 import 'server-only'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-// Service-role client. Deliberately unused by any user-facing request path
-// today — every privileged write goes through a security-definer RPC
-// (admin_set_role, admin_set_active, decide_leave_request, ...) so RLS
-// stays the enforcement layer. Keep this only for future out-of-band
-// scripts (bulk imports, migrations) run outside the request lifecycle.
+// Service-role client. Used only after a biometric request has passed its HMAC
+// check, plus future out-of-band scripts. Never import this into client code:
+// the key bypasses RLS.
 export function createAdminClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -64,6 +64,7 @@ export default async function EnrollmentsPage() {
             <TableRow>
               <TableRowNumberHead />
               <TableHead>Enrollment</TableHead>
+              <TableHead>Vendor</TableHead>
               <TableHead>Staff</TableHead>
               <TableHead>Branch</TableHead>
               <TableHead>Note</TableHead>
@@ -74,6 +75,7 @@ export default async function EnrollmentsPage() {
               <TableRow key={row.id}>
                   <TableRowNumber value={index + 1} />
                 <TableCell className="font-mono text-xs">{row.deviceUserId}</TableCell>
+                <TableCell className="uppercase text-xs text-muted-foreground">{row.vendor}</TableCell>
                 <TableCell>
                   <div className="font-medium text-foreground">{row.fullName}</div>
                   <div className="text-xs text-muted-foreground">{row.email}</div>

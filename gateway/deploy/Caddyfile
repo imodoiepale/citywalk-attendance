@@ -1,0 +1,23 @@
+# One Caddyfile for initial capture and production.
+#
+# GATEWAY_ADDRESS=:80                           raw VPS IP, HTTP only
+# GATEWAY_ADDRESS=biometric.example.co.ke       domain with automatic HTTPS
+# GATEWAY_ADDRESS=http://biometric.example.co.ke  domain forced to HTTP
+
+{$GATEWAY_ADDRESS::80} {
+	encode gzip
+
+	# /status contains device serials and queue details. Read it from inside the
+	# gateway container; it must not become a public reconnaissance endpoint.
+	@internal path /status
+	respond @internal 404
+
+	reverse_proxy gateway:8080
+
+	log {
+		output file /data/access.log {
+			roll_size 20mb
+			roll_keep 10
+		}
+	}
+}
