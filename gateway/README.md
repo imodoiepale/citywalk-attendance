@@ -8,7 +8,7 @@ EN-K190FTW / Cams API
         │
         │ HTTP(S), WebSocket, or raw TCP
         ▼
-Hostinger VPS: Caddy → gateway → durable spool
+Hostinger VPS: Traefik → gateway → durable spool
                                   │
                                   ├─ ingest_biometric_events() → events → punches
                                   └─ sanitized raw archive → device_raw_payloads
@@ -21,8 +21,8 @@ attendance, and a Supabase outage leaves scans on the VPS until it recovers.
 
 | Mode | Where the URL is configured | URL |
 |---|---|---|
-| EN-K190FTW native FkWeb | On the physical terminal | `http://VPS_IP/` initially, or `https://biometric.example.com/` if that firmware supports TLS |
-| Cams Web API v3 | Cams **API Monitor**, not the terminal | `https://biometric.example.com/callbacks/cams` |
+| EN-K190FTW native FkWeb | On the physical terminal | `http://76.13.53.26:8081/` initially, or `https://srv1631847.hstgr.cloud/` if that firmware supports TLS |
+| Cams Web API v3 | Cams **API Monitor**, not the terminal | `https://srv1631847.hstgr.cloud/callbacks/cams` |
 
 The Cams documentation describes a paid cloud protocol engine. It does not
 document the EN-K190FTW's native `FkWeb` protocol and does not make that device
@@ -139,7 +139,8 @@ The simplest hPanel route after these files are committed and pushed:
    |---|---|
    | `SUPABASE_URL` | The project URL |
    | `SUPABASE_SERVICE_ROLE_KEY` | The service-role key |
-   | `GATEWAY_ADDRESS` | `:80` for initial raw-IP HTTP capture |
+   | `GATEWAY_HOSTNAME` | `srv1631847.hstgr.cloud` |
+   | `NATIVE_HTTP_PORT` | `8081` for initial raw-IP HTTP capture |
    | `DEVICE_SERIAL` | `ENS2025079` |
    | `DEVICE_VENDOR` | `ebkn` |
    | `DEVICE_LABEL` | `HQ main entrance` |
@@ -147,36 +148,33 @@ The simplest hPanel route after these files are committed and pushed:
    | `TZ` | `Africa/Nairobi` |
 
 5. Deploy. The remote Git build context fetches `gateway/` from the repository;
-   the spool and Caddy state use named persistent volumes.
+   the scan spool uses a named persistent volume. Traefik already running on
+   this VPS terminates HTTPS for the gateway hostname.
 6. In both the Hostinger managed firewall and Ubuntu firewall, allow inbound
-   TCP `22`, `80`, and `443`. Do not expose `8080`, `5005`, `8090`, Postgres,
-   or Supabase credentials.
+   TCP `22`, `80`, `443`, and the temporary native-capture port `8081`. Do not
+   expose `5005`, `8090`, Postgres, or Supabase credentials. Close `8081` once
+   the terminal is confirmed to work through HTTPS.
 
 For SSH deployment instead, clone the repository, create `gateway/.env` and
 `gateway/devices.yaml`, then run `docker compose up -d --build` from `gateway/`.
 
 ### Domain and TLS
 
-For the initial native capture:
-
-```dotenv
-GATEWAY_ADDRESS=:80
-```
-
-and use:
+The existing VPS Traefik redirects port 80 to HTTPS. For terminal firmware that
+cannot validate TLS, use the deliberately separate initial capture listener:
 
 ```text
 Server-Client Mode: FkWeb
-Web Server URL: http://VPS_IP/
+Web Server URL: http://76.13.53.26:8081/
 ```
 
-After an A record such as `biometric.example.com` points to the VPS:
+For TLS-capable firmware and Cams callbacks, use the existing VPS hostname:
 
-- Set `GATEWAY_ADDRESS=biometric.example.com` for automatic HTTPS.
-- Use `https://biometric.example.com/` on the terminal only if real testing
+- Set `GATEWAY_HOSTNAME=srv1631847.hstgr.cloud`.
+- Use `https://srv1631847.hstgr.cloud/` on the terminal only if real testing
   confirms its firmware supports HTTPS.
-- If it supports a hostname but only HTTP, set
-  `GATEWAY_ADDRESS=http://biometric.example.com` and use the HTTP URL.
+- Configure Cams API Monitor callback as
+  `https://srv1631847.hstgr.cloud/callbacks/cams`.
 
 Never port-forward the terminal's `5005` to the internet. The terminal makes an
 outbound connection to the VPS; nobody on the internet needs inbound access to
@@ -204,7 +202,7 @@ CAMS_SECURITY_KEY=
 Cams API Monitor:
 
 ```text
-Callback URL: https://biometric.example.com/callbacks/cams
+Callback URL: https://srv1631847.hstgr.cloud/callbacks/cams
 AuthToken: same value as CAMS_AUTH_TOKEN
 Security Key: blank, or exactly the same value as CAMS_SECURITY_KEY
 ```
@@ -223,7 +221,7 @@ user/template management operations.
 | `POST` | `/iclock/cdata?...` | ZKTeco ADMS; returns `OK` |
 | `WS` | Any path | Parses frames and returns `OK` |
 | `GET` | `/healthz` | Public liveness, `{"status":"ok"}` |
-| `GET` | `/status` | Queue/device diagnostics; blocked by public Caddy |
+| `GET` | `/status` | Queue/device diagnostics; loopback-only |
 
 Read private status on the VPS:
 
@@ -236,7 +234,8 @@ docker compose exec gateway node -e "fetch('http://127.0.0.1:8080/status').then(
 ### 1. Container and proxy
 
 ```bash
-curl -i http://VPS_IP/healthz
+curl -i http://76.13.53.26:8081/healthz
+curl -i https://srv1631847.hstgr.cloud/healthz
 docker compose ps
 docker compose logs --tail=100 gateway
 ```

@@ -37,6 +37,10 @@ export interface GatewayStats {
   lastSerial: string | null
 }
 
+function isLoopback(address: string | undefined): boolean {
+  return address === '127.0.0.1' || address === '::1' || address?.startsWith('::ffff:127.') === true
+}
+
 export function createServer(deps: ServerDeps) {
   const { config, forwarder } = deps
 
@@ -194,6 +198,9 @@ export function createServer(deps: ServerDeps) {
     }
 
     if (req.method === 'GET' && url.pathname === '/status') {
+      // Queue contents, device serials and recent errors are operational data,
+      // not a public health check. Inspect from inside the container only.
+      if (!isLoopback(req.socket.remoteAddress)) return send(404, { error: 'not found' })
       return send(200, {
         status: 'ok',
         startedAt: stats.startedAt,

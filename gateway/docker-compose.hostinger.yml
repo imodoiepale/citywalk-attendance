@@ -1,8 +1,8 @@
-# Hostinger Docker Manager application definition.
+# Hostinger Docker Manager application definition for the existing VPS.
 #
-# Deploy with Docker Manager -> Compose -> Compose from URL, using the raw URL
-# of this file after it is pushed to GitHub. The remote Git build context means
-# Hostinger receives the complete gateway source, not only this YAML file.
+# That server already runs Hostinger's host-network Traefik project on 80/443.
+# The labels below join its HTTPS routing; the separate 8081 publication is the
+# initial plain-HTTP path for terminal firmware that cannot speak TLS.
 
 services:
   gateway:
@@ -34,8 +34,15 @@ services:
             direction: ${DEVICE_DIRECTION:-null}
     volumes:
       - spool:/var/lib/smart-sentinel/spool
-    expose:
-      - "8080"
+    ports:
+      - "${NATIVE_HTTP_PORT:-8081}:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.citywalk-biometric.rule=Host(`${GATEWAY_HOSTNAME:-srv1631847.hstgr.cloud}`)"
+      - "traefik.http.routers.citywalk-biometric.entrypoints=websecure"
+      - "traefik.http.routers.citywalk-biometric.tls=true"
+      - "traefik.http.routers.citywalk-biometric.tls.certresolver=letsencrypt"
+      - "traefik.http.services.citywalk-biometric.loadbalancer.server.port=8080"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -43,41 +50,5 @@ services:
       start_period: 10s
       retries: 3
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    environment:
-      GATEWAY_ADDRESS: ${GATEWAY_ADDRESS:-:80}
-    ports:
-      - "80:80"
-      - "443:443"
-    configs:
-      - source: gateway_caddyfile
-        target: /etc/caddy/Caddyfile
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      gateway:
-        condition: service_healthy
-
-configs:
-  gateway_caddyfile:
-    content: |
-      {$$GATEWAY_ADDRESS::80} {
-        encode gzip
-        @internal path /status
-        respond @internal 404
-        reverse_proxy gateway:8080
-        log {
-          output file /data/access.log {
-            roll_size 20mb
-            roll_keep 10
-          }
-        }
-      }
-
 volumes:
   spool:
-  caddy_data:
-  caddy_config:
