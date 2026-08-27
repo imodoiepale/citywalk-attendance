@@ -1,56 +1,88 @@
 # Citywalk biometric gateway
 
 Receives terminal traffic on a Hostinger VPS, normalizes attendance scans,
-spools them to persistent disk, and writes them to Supabase.
+spools them to persistent disk, and fans them out to every configured
+destination.
 
 ```text
-EN-K190FTW / Cams API
-        │
-        │ HTTP(S), WebSocket, or raw TCP
-        ▼
-Hostinger VPS: Traefik → gateway → durable spool
-                                  │
-                                  ├─ ingest_biometric_events() → events → punches
-                                  └─ sanitized raw archive → device_raw_payloads
+EN-K190FTW (FkWeb, raw TCP 5005)   Cams API / ZKTeco ADMS (HTTPS)
+        │                                    │
+        └────────────────┬───────────────────┘
+                         ▼
+        Hostinger VPS: gateway → durable spool, one per destination
+                         │
+                         ├─ supabase   → ingest_biometric_events() → punches
+                         ├─ app        → HMAC-signed webhook
+                         ├─ webhook    → n8n / Zapier / partner HRMS / …
+                         └─ raw archive → device_raw_payloads
 ```
 
-The event and archive queues are independent. An archive failure cannot block
-attendance, and a Supabase outage leaves scans on the VPS until it recovers.
+Every queue is independent. An archive failure cannot block attendance, a
+Supabase outage leaves scans on the VPS until it recovers, and a third-party
+webhook that is down cannot delay a punch reaching Supabase.
 
-## The two server-URL modes are different
+## FkWeb: the native protocol, solved
+
+The EN-K190FTW and its FK-family relatives speak a protocol the supplier never
+documented. It is now implemented natively — **no Windows machine anywhere in
+the path**. The specification, and the method used to derive it from the
+vendor's own software, is in
+[`attendance/docs/fkweb-protocol.md`](https://github.com/imodoiepale/attendance/blob/main/docs/fkweb-protocol.md).
+
+The short version:
+
+- The terminal is the **client**. It dials TCP `5005` on this gateway, writes one
+  bare JSON object, waits for a JSON reply, and closes. It works from behind NAT
+  and needs no inbound access to the terminal.
+- The scan looks like this:
+  ```json
+  {"log_id":"4471","user_id":"1027","fk_device_id":"ENS2025079",
+   "io_time":"20260827081530","verify_mode":"3","temperature":"36.60"}
+  ```
+  `io_time` is device-local wall clock with no zone, resolved against the
+  device's `timezone` in `devices.yaml`.
+- **The reply is the protocol.** The terminal treats a scan as undelivered until
+  it hears back, and re-sends indefinitely otherwise:
+  ```json
+  {"log_id":"4471","result":"OK","mode":"nothing"}
+  ```
+  This is why passively sniffing port 5005 produced nothing usable — a listener
+  that accepts bytes and says nothing looks exactly like no listener.
+
+The gateway builds that reply only **after** the scan is durably spooled, and
+deliberately stays silent for a serial that is not in `devices.yaml`: silence
+makes the terminal retain and retry, so adding the serial recovers the whole
+buffered window instead of losing it.
+
+Set the device to `vendor: fkweb` in `devices.yaml`. The older `ebkn` parser
+remains for readers on this family that push over HTTP instead of dialling the
+socket; it has no acknowledgement and must not be used for FkWeb terminals.
+
+### Terminal settings
+
+```text
+Server-Client Mode: FkWeb
+Web Server URL:     <VPS IP>:5005
+```
+
+Raw TCP cannot go through Traefik — it is not HTTP — so the container publishes
+5005 itself. `STRICT_SERIALS` is what stands between that port and anyone able
+to reach it; keep it on and keep `devices.yaml` accurate.
+
+## Cams Web API v3 is a separate, optional path
 
 | Mode | Where the URL is configured | URL |
 |---|---|---|
-| EN-K190FTW native FkWeb | On the physical terminal | `http://76.13.53.26:8081/` initially, or `https://srv1631847.hstgr.cloud/` if that firmware supports TLS |
+| Native FkWeb | On the physical terminal | `<VPS IP>:5005` (raw TCP) |
 | Cams Web API v3 | Cams **API Monitor**, not the terminal | `https://srv1631847.hstgr.cloud/callbacks/cams` |
 
 The Cams documentation describes a paid cloud protocol engine. It does not
-document the EN-K190FTW's native `FkWeb` protocol and does not make that device
-a Cams-native device automatically. A non-Cams device needs Cams confirmation,
-activation, and usually Hybrid Push/protocol support before the API Monitor
-callback path can work.
+document the FkWeb protocol and does not make a non-Cams device Cams-native. If
+you do activate it, `/callbacks/cams` implements the documented
+`RealTime.PunchLog`, validates `AuthToken`, optionally decrypts AES-256-ECB
+callbacks, and always returns `{"status":"done"}` after a valid callback.
 
-This gateway supports both:
-
-- Native FkWeb capture remains tolerant because the exact EN-K190FTW payload is
-  not yet captured from a real scan.
-- `/callbacks/cams` implements the documented `RealTime.PunchLog`, validates
-  `AuthToken`, optionally decrypts AES-256-ECB callbacks, and always returns
-  `{"status":"done"}` after a valid callback has been accepted.
-
-## What is known about the actual EN-K190FTW
-
-The prior session scanned the terminal at `192.168.1.150`:
-
-- Ports `5005` and `8090` are open.
-- Port `8090` is a Boost.Beast JSON service, not a browser interface.
-- Port `5005` accepts TCP but is not HTTP.
-- The port `8090` command body is still undocumented; read-only probing did not
-  identify it.
-
-The remaining native-protocol step is therefore a real push capture. Ask the
-supplier for the EN-K190FTW HTTP/API document and the exact FkWeb server-URL
-format in parallel.
+With FkWeb working natively, Cams is not needed for these terminals.
 
 ## Local setup
 
@@ -59,6 +91,7 @@ cd gateway
 npm ci
 cp .env.example .env
 cp devices.example.yaml devices.yaml
+cp destinations.example.yaml destinations.yaml
 npm test
 npm run typecheck
 npm start
@@ -67,10 +100,10 @@ npm start
 Required `.env` values for the default direct-to-Supabase path:
 
 ```dotenv
-SINK=supabase
 SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 GATEWAY_HTTP_PORT=8080
+GATEWAY_TCP_PORTS=5005
 STRICT_SERIALS=true
 ARCHIVE_RAW=true
 TZ=Africa/Nairobi
@@ -79,22 +112,76 @@ GATEWAY_ADDRESS=:80
 
 The service-role value is a root-equivalent secret. Store it only in the VPS
 application environment. Never place it in Git, a terminal setting, a URL, or
-chat. `SINK=app` is the alternative when the gateway host should not have it.
+chat. An `app`-type destination is the alternative when the gateway host should
+not have it.
 
-`devices.yaml` must contain the same serial and vendor as the Supabase device:
+`devices.yaml` must contain the same serial as the Supabase device:
 
 ```yaml
 devices:
   - serial: ENS2025079
     label: HQ main entrance
-    vendor: ebkn
+    vendor: fkweb
     mode: listen
+    port: 5005
     timezone: Africa/Nairobi
+    branch: hq          # routing hint for destination filters
     direction: null
 ```
 
-Docker Manager uses `DEVICES_YAML` instead of a bind-mounted file; the supplied
-Hostinger Compose definition already contains this device.
+Docker Manager uses `DEVICES_YAML` and `DESTINATIONS_YAML` instead of
+bind-mounted files; the supplied Hostinger Compose definition already contains
+this device.
+
+## Destinations: fanning out to third parties
+
+`destinations.yaml` lists everywhere a scan should go. Each destination gets its
+**own spool directory and its own retry loop**, so a partner endpoint that is
+down, slow or rate-limiting cannot delay a punch reaching Supabase.
+
+```yaml
+destinations:
+  - id: supabase-primary
+    type: supabase
+
+  - id: n8n-payroll
+    type: webhook
+    url: https://n8n.example.com/webhook/citywalk-punch
+    auth:
+      kind: hmac                 # hmac | bearer | header | none
+      secretEnv: N8N_WEBHOOK_SECRET
+    filter:
+      branches: [hq]             # matches `branch:` in devices.yaml
+```
+
+Third parties receive the same `NormalizedEvent` everything else gets:
+
+```json
+{"events":[{
+  "deviceSerial":"ENS2025079","externalUserId":"1027",
+  "scannedAt":"2026-08-27T05:15:30.000Z","direction":"in",
+  "dedupeKey":"ENS2025079|1027|2026-08-27T05:15:30.000Z","raw":{}
+}]}
+```
+
+`dedupeKey` is derived from the scan, never from receipt time, so a terminal
+replaying its buffer after an outage is not a second punch. Receivers must treat
+a repeat as a no-op.
+
+For a partner who needs their own shape, `format: single` sends one request per
+scan and `template` reshapes the body with `{{placeholders}}` — see
+`destinations.example.yaml` for a worked example.
+
+**Secrets are never written in this file.** `auth.secretEnv` names an
+environment variable; the loader refuses a literal secret, an inline
+`Authorization` header, or a credential in the URL, and fails at boot — with the
+variable's name — if the named variable is unset.
+
+Omitting `destinations.yaml` entirely falls back to the single destination named
+by `SINK`, exactly as the gateway behaved before fan-out existed.
+
+Per-destination health, including a one-sided backlog, is in `/status` under
+`destinations`.
 
 ## Supabase configuration
 
@@ -140,45 +227,63 @@ The simplest hPanel route after these files are committed and pushed:
    | `SUPABASE_URL` | The project URL |
    | `SUPABASE_SERVICE_ROLE_KEY` | The service-role key |
    | `GATEWAY_HOSTNAME` | `srv1631847.hstgr.cloud` |
-   | `NATIVE_HTTP_PORT` | `8081` for initial raw-IP HTTP capture |
+   | `FKWEB_TCP_PORT` | `5005` — where the terminal dials |
+   | `NATIVE_HTTP_PORT` | `8081`, only if an HTTP-family device also needs raw-IP capture |
    | `DEVICE_SERIAL` | `ENS2025079` |
-   | `DEVICE_VENDOR` | `ebkn` |
+   | `DEVICE_VENDOR` | `fkweb` |
    | `DEVICE_LABEL` | `HQ main entrance` |
+   | `DEVICE_BRANCH` | `hq` |
    | `DEVICE_DIRECTION` | `null` |
    | `TZ` | `Africa/Nairobi` |
+
+   Add any `auth.secretEnv` variables your `destinations.yaml` names — e.g.
+   `N8N_WEBHOOK_SECRET`. The container refuses to start if one is missing.
 
 5. Deploy. The remote Git build context fetches `gateway/` from the repository;
    the scan spool uses a named persistent volume. Traefik already running on
    this VPS terminates HTTPS for the gateway hostname.
-6. In both the Hostinger managed firewall and Ubuntu firewall, allow inbound
-   TCP `22`, `80`, `443`, and the temporary native-capture port `8081`. Do not
-   expose `5005`, `8090`, Postgres, or Supabase credentials. Close `8081` once
-   the terminal is confirmed to work through HTTPS.
+6. In both the Hostinger managed firewall and the Ubuntu firewall, allow inbound
+   TCP `22`, `80`, `443`, and **`5005`**.
+
+   `5005` is inbound to the *gateway*, not to the terminal — the terminal dials
+   out to it. It carries a raw protocol with no authentication the firmware can
+   provide, so `STRICT_SERIALS=true` and an accurate `devices.yaml` are the
+   whole of the door: an unlisted serial is rejected and never becomes a punch.
+   If your terminals have fixed public egress addresses, restrict `5005` to
+   those source IPs as well.
+
+   Do not expose `8090`, Postgres, or Supabase credentials. Close `8081` unless
+   an HTTP-family device is actually using it.
 
 For SSH deployment instead, clone the repository, create `gateway/.env` and
 `gateway/devices.yaml`, then run `docker compose up -d --build` from `gateway/`.
 
 ### Domain and TLS
 
-The existing VPS Traefik redirects port 80 to HTTPS. For terminal firmware that
-cannot validate TLS, use the deliberately separate initial capture listener:
+FkWeb is a raw TCP protocol, **not HTTP**, so Traefik cannot front it and TLS
+does not apply to it. The terminal is pointed straight at the VPS address and
+port, and the container publishes that port itself:
 
 ```text
 Server-Client Mode: FkWeb
-Web Server URL: http://76.13.53.26:8081/
+Web Server URL: 76.13.53.26:5005
 ```
 
-For TLS-capable firmware and Cams callbacks, use the existing VPS hostname:
+The scan payload carries an enrollment number, a device serial and a timestamp —
+no names, no biometric templates. That it crosses the internet unencrypted is a
+real limitation of the firmware, not a choice; if it matters for your threat
+model, terminate it over a site-to-site VPN or WireGuard tunnel to the VPS and
+point the terminal at the tunnel address instead.
+
+HTTP-family devices and Cams callbacks do get TLS, via the existing hostname:
 
 - Set `GATEWAY_HOSTNAME=srv1631847.hstgr.cloud`.
-- Use `https://srv1631847.hstgr.cloud/` on the terminal only if real testing
-  confirms its firmware supports HTTPS.
 - Configure Cams API Monitor callback as
   `https://srv1631847.hstgr.cloud/callbacks/cams`.
 
-Never port-forward the terminal's `5005` to the internet. The terminal makes an
-outbound connection to the VPS; nobody on the internet needs inbound access to
-the reader.
+Note the direction of `5005`: it is inbound **to the gateway**, which the
+terminal dials out to. Nobody needs inbound access to the reader itself — never
+port-forward the terminal's own `5005` from the branch network.
 
 If the full Next.js application is later moved to this VPS, put it on a separate
 hostname behind the same reverse proxy. Do not deploy a second project that
@@ -243,13 +348,24 @@ docker compose logs --tail=100 gateway
 Expected: HTTP 200, both containers healthy/running, no credential or migration
 errors.
 
-### 2. Synthetic native scan
+### 2. Synthetic FkWeb scan
 
-From inside the gateway container:
+This is the important one: it proves the acknowledgement path end to end. From
+any machine that can reach the VPS:
 
 ```bash
-node src/probe/simulate.ts --pin 1027
+printf '{"log_id":"1","user_id":"1027","fk_device_id":"ENS2025079","io_time":"20260827081530","verify_mode":"3","temperature":"0.0"}' | nc 76.13.53.26 5005
 ```
+
+The gateway must reply on the same connection with:
+
+```json
+{"log_id":"1","result":"OK","mode":"nothing"}
+```
+
+No reply means the scan was **not** accepted — check the logs for
+`rejected push from unknown serial`, which is the expected result if the serial
+is missing from `devices.yaml`.
 
 For a Cams-format callback, with `CAMS_AUTH_TOKEN` configured:
 
@@ -293,17 +409,31 @@ increase the duplicate count without creating a second punch.
 
 ### 5. Real terminal scan
 
-1. Photograph the terminal's current network/server screens.
-2. Set FkWeb and the VPS HTTP URL.
+1. Photograph the terminal's current network/server screens before changing
+   anything.
+2. Set `Server-Client Mode: FkWeb` and `Web Server URL: <VPS IP>:5005`.
 3. Scan one known finger/face/card.
-4. Check gateway logs and the three queries above.
-5. If the request arrived but parsed zero events, keep the archived payload and
-   add it as a parser fixture. If no request arrived, test DNS/gateway/firewall
-   and capture with Wireshark before changing parser code.
+4. Check the gateway log for `accepted scans` with `vendor: fkweb`, then run the
+   three queries above.
 
-For LAN discovery/capture, run `npm run capture` and try the documented local
-formats (`http://192.168.1.237:8080/`, no-scheme host/port, WebSocket, then
-LogClient). Restore the photographed values afterward.
+If a connection arrived but parsed zero events, the archived payload in
+`device_raw_payloads` is the evidence — add it to `test/fkweb.test.ts` as a
+fixture and tighten the parser against it rather than guessing. The likely
+causes, in order:
+
+- **Different field names.** Some firmwares in this family use `device_id`
+  instead of `fk_device_id`; the parser accepts both, but a genuinely new
+  spelling needs adding.
+- **A V1 device wanting a different reply.** Both `SendRtLogResponseV1` and
+  `SendRtLogResponseV3` exist in the vendor implementation; the gateway sends
+  the superset body. If the terminal keeps re-sending an already-accepted scan,
+  that is the thing to vary first.
+- **Not JSON at all.** Then it is not FkWeb, and
+  `attendance/docs/fkweb-protocol.md` §5 covers the SBXPC XML family.
+
+If no connection arrived at all, the problem is network, not parsing: check the
+Hostinger and Ubuntu firewalls both allow inbound `5005`, and confirm the
+terminal's branch network permits outbound to it.
 
 ## Privacy and operations
 

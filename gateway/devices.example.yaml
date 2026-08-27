@@ -4,17 +4,25 @@
 # the join between this file and the punch that ends up on someone's timesheet.
 
 devices:
-  # The EN-K190FTW on the branch LAN.
+  # The EN-K190FTW, set to "Server-Client Mode: FkWeb" on the terminal itself.
+  #
+  # vendor: fkweb is the native protocol parser, written from the terminal
+  # vendor's own server implementation. It is the only parser that returns the
+  # JSON acknowledgement these terminals block on — with any other vendor they
+  # will buffer scans and re-send them forever. Use `ebkn` only for a reader on
+  # this family that pushes over HTTP rather than dialling the raw TCP port.
   - serial: ENS2025079
     label: HQ main entrance
-    vendor: ebkn
-    # listen = the terminal pushes to this gateway (preferred: works behind NAT,
+    vendor: fkweb
+    # listen = the terminal dials this gateway (preferred: works behind NAT,
     #          needs no hardware at the branch)
     # poll   = this gateway dials the terminal (requires running on the LAN)
     mode: listen
-    host: 192.168.1.150
     port: 5005
     timezone: Africa/Nairobi
+    # Routing hint for destination filters in destinations.yaml. The app stays
+    # the authority on which branch a device really belongs to.
+    branch: hq
     # null  → use whatever the firmware reports, falling back to the direction
     #         configured on the device row in the app
     # 'in'  → force every scan to a clock-in, for a reader wired as the entrance
@@ -26,4 +34,5 @@ devices:
   #   vendor: zkteco
   #   mode: listen
   #   timezone: Africa/Nairobi
+  #   branch: branch-02
   #   direction: out

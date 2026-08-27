@@ -11,7 +11,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev || npm install --omit=dev
 
 COPY src ./src
-COPY devices.example.yaml ./
+COPY devices.example.yaml destinations.example.yaml ./
 
 # The spool must outlive the container. Without a volume mounted here, a
 # restart during an outage would discard scans that had not yet been forwarded.
@@ -20,11 +20,14 @@ VOLUME ["/var/lib/smart-sentinel/spool"]
 
 ENV SPOOL_DIR=/var/lib/smart-sentinel/spool \
     DEVICES_FILE=/app/devices.yaml \
+    DESTINATIONS_FILE=/app/destinations.yaml \
     GATEWAY_HTTP_PORT=8080 \
     TZ=Africa/Nairobi
 
 USER node
-EXPOSE 8080
+# 8080 carries HTTP and WebSocket. 5005 is the FkWeb raw-TCP port the
+# EN-K190FTW family dials; it is not HTTP and cannot go through a reverse proxy.
+EXPOSE 8080 5005
 
 # Fails the container if the process is up but not serving — which is the state
 # a plain process check would happily call healthy.

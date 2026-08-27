@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import { loadDestinations } from './destinations/config.ts'
+import type { DestinationConfig } from './destinations/types.ts'
 
 // Config is split in two on purpose.
 //
@@ -24,6 +26,15 @@ export interface DeviceConfig {
   /** Poll mode only. */
   pollIntervalMs: number
   label?: string
+  /**
+   * Which branch this reader sits in.
+   *
+   * Purely a routing hint for destination filters — the app remains the
+   * authority on which branch a device belongs to. It lives here because a
+   * destination that should only receive HQ scans has to be able to say so
+   * without the gateway querying Supabase on every push.
+   */
+  branch?: string
 }
 
 export type SinkName = 'supabase' | 'app'
@@ -56,6 +67,14 @@ export interface Config {
   /** Optional 32-byte AES-256 key configured in the Cams API Monitor. */
   camsSecurityKey?: string
   devices: DeviceConfig[]
+  /**
+   * Every place a scan should be delivered.
+   *
+   * Always at least one. When no destinations.yaml exists this holds a single
+   * entry synthesised from SINK, so deployments that predate fan-out behave
+   * exactly as they did before.
+   */
+  destinations: DestinationConfig[]
 }
 
 function required(name: string): string {
@@ -102,6 +121,7 @@ export function loadDevices(file: string, defaultTimezone: string, inlineYaml?: 
       direction: direction as DeviceConfig['direction'],
       pollIntervalMs: Number(d.poll_interval_ms ?? d.pollIntervalMs ?? 30_000),
       label: d.label ? String(d.label) : undefined,
+      branch: d.branch ? String(d.branch).trim() : undefined,
     }
   })
 }
@@ -117,30 +137,35 @@ export function loadConfig(): Config {
     serials.add(d.serial)
   }
 
-  const sink = (process.env.SINK ?? 'supabase').toLowerCase()
-  if (sink !== 'supabase' && sink !== 'app') {
-    throw new Error(`SINK must be "supabase" or "app", got "${sink}".`)
+  const destinationsFile = path.resolve(process.env.DESTINATIONS_FILE ?? 'destinations.yaml')
+  const destinations = loadDestinations(destinationsFile, process.env.DESTINATIONS_YAML)
+  const types = new Set(destinations.map((d) => d.type))
+
+  // Validate the credentials every configured destination needs, at boot rather
+  // than at the first scan. A gateway that starts happily and only fails when
+  // someone puts their finger on the reader is far worse than one that refuses
+  // to start with the variable's name in the message.
+  const wiring: { supabaseUrl?: string; supabaseKey?: string; appUrl?: string; secret?: string } = {}
+
+  if (types.has('supabase')) {
+    wiring.supabaseUrl = required('SUPABASE_URL').replace(/\/$/, '')
+    wiring.supabaseKey = required('SUPABASE_SERVICE_ROLE_KEY')
+    if (wiring.supabaseKey.length < 40) {
+      // The anon key is the classic paste error here, and it fails with a 401
+      // that reads like a network problem.
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY looks too short — is that the anon key?')
+    }
   }
 
-  // Validate the chosen sink's credentials at boot rather than at the first
-  // scan. A gateway that starts happily and only fails when someone puts their
-  // finger on the reader is far worse than one that refuses to start.
-  const wiring =
-    sink === 'supabase'
-      ? {
-          supabaseUrl: required('SUPABASE_URL').replace(/\/$/, ''),
-          supabaseKey: required('SUPABASE_SERVICE_ROLE_KEY'),
-        }
-      : {
-          appUrl: required('APP_URL').replace(/\/$/, ''),
-          secret: required('BIOMETRIC_WEBHOOK_SECRET'),
-        }
-
-  if (sink === 'supabase' && wiring.supabaseKey && wiring.supabaseKey.length < 40) {
-    // The anon key is the classic paste error here, and it fails with a 401
-    // that reads like a network problem.
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY looks too short — is that the anon key?')
+  if (types.has('app')) {
+    wiring.appUrl = required('APP_URL').replace(/\/$/, '')
+    wiring.secret = required('BIOMETRIC_WEBHOOK_SECRET')
   }
+
+  // Retained for the startup banner and for anything still reading it. The
+  // destination list is the real answer now; this is just which first-party
+  // store is in play.
+  const sink: SinkName = types.has('supabase') ? 'supabase' : types.has('app') ? 'app' : 'supabase'
 
   const camsAuthTokens = [
     process.env.CAMS_AUTH_TOKEN,
@@ -171,5 +196,6 @@ export function loadConfig(): Config {
     camsAuthTokens,
     camsSecurityKey,
     devices,
+    destinations,
   }
 }

@@ -77,5 +77,15 @@ export function toInstant(value: string, timeZone: string): Date | null {
   if (/^\d{10}$/.test(trimmed)) return new Date(Number(trimmed) * 1000)
   if (/^\d{13}$/.test(trimmed)) return new Date(Number(trimmed))
 
+  // Compact local time, `yyyyMMddHHmmss` — what FkWeb firmware puts in
+  // `io_time`. Deliberately checked after the epoch forms and before the
+  // separated form: 14 digits cannot collide with a 10- or 13-digit epoch, and
+  // reading it as a number would land it in 1970.
+  const compact = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(trimmed)
+  if (compact) {
+    const [, y, mo, d, h, mi, s] = compact
+    return naiveToInstant(`${y}-${mo}-${d} ${h}:${mi}:${s}`, timeZone)
+  }
+
   return naiveToInstant(trimmed, timeZone)
 }

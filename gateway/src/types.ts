@@ -39,6 +39,18 @@ export interface VendorParser {
    * normal outcome (heartbeats, handshakes, keep-alives) and is not an error.
    */
   parse(input: VendorInput): NormalizedEvent[]
+  /**
+   * The reply this firmware waits for before it considers a scan delivered.
+   *
+   * Optional because most HTTP-family readers are happy with the transport's
+   * own 200. It exists for the raw-TCP families that will re-send their whole
+   * buffer — forever — until they get an application-level acknowledgement.
+   * Returning null means "nothing to say", not "failure".
+   *
+   * Only called once a scan has actually been accepted, so a device we refuse
+   * to record for is also a device we do not tell "OK".
+   */
+  ack?(input: VendorInput, events: NormalizedEvent[]): string | null
 }
 
 export interface VendorInput {

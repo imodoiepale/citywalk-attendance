@@ -6,15 +6,25 @@ services:
     environment:
       # Bind inside the container; Caddy is what faces the network.
       GATEWAY_HTTP_PORT: 8080
+      # FkWeb terminals dial this raw TCP port directly. It is not HTTP, so
+      # Caddy cannot front it — the container publishes it itself.
+      GATEWAY_TCP_PORTS: ${GATEWAY_TCP_PORTS:-5005}
       SPOOL_DIR: /var/lib/smart-sentinel/spool
       DEVICES_FILE: /app/devices.yaml
+      DESTINATIONS_FILE: /app/destinations.yaml
     volumes:
       # The device inventory is edited on the host and read-only in here, so a
       # compromised container cannot quietly add itself a device.
       - ./devices.yaml:/app/devices.yaml:ro
+      # Uncomment once destinations.yaml exists. Docker creates a DIRECTORY for
+      # a bind source that is missing, and the gateway then fails to read it —
+      # so only add this line after copying destinations.example.yaml across.
+      # - ./destinations.yaml:/app/destinations.yaml:ro
       - spool:/var/lib/smart-sentinel/spool
     expose:
       - "8080"
+    ports:
+      - "${FKWEB_TCP_PORT:-5005}:5005"
 
   caddy:
     image: caddy:2-alpine

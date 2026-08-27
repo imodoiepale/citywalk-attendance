@@ -303,6 +303,7 @@ function config(over: Partial<Config> = {}): Config {
       serial: 'ENS2025079', vendor: 'ebkn', mode: 'listen',
       timezone: 'Africa/Nairobi', direction: null, pollIntervalMs: 30_000,
     }],
+    destinations: [{ id: 'supabase-primary', type: 'supabase', enabled: true }],
     ...over,
   }
 }

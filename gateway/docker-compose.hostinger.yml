@@ -3,6 +3,12 @@
 # That server already runs Hostinger's host-network Traefik project on 80/443.
 # The labels below join its HTTPS routing; the separate 8081 publication is the
 # initial plain-HTTP path for terminal firmware that cannot speak TLS.
+#
+# Port 5005 is published because that is where FkWeb terminals dial. Traefik
+# terminates HTTPS for HTTP-family devices, but an FkWeb terminal speaks a raw
+# TCP protocol that is not HTTP and cannot be proxied by it. The allowlist
+# (STRICT_SERIALS) is what stands between that port and anyone able to reach it,
+# so keep it on and keep devices.yaml accurate.
 
 services:
   gateway:
@@ -10,10 +16,10 @@ services:
       context: https://github.com/imodoiepale/citywalk-attendance.git#codex/hostinger-biometric-gateway:gateway
     restart: unless-stopped
     environment:
-      SINK: supabase
       SUPABASE_URL: ${SUPABASE_URL:-https://kntejfukhzgccmqtioag.supabase.co}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set the Supabase service-role key in Hostinger}
       GATEWAY_HTTP_PORT: 8080
+      GATEWAY_TCP_PORTS: ${GATEWAY_TCP_PORTS:-5005}
       SPOOL_DIR: /var/lib/smart-sentinel/spool
       TZ: ${TZ:-Africa/Nairobi}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -22,20 +28,38 @@ services:
       CAMS_AUTH_TOKEN: ${CAMS_AUTH_TOKEN:-}
       CAMS_AUTH_TOKENS: ${CAMS_AUTH_TOKENS:-}
       CAMS_SECURITY_KEY: ${CAMS_SECURITY_KEY:-}
+
+      # Secrets referenced by destinations.yaml via auth.secretEnv. Add the
+      # variable here and in Hostinger's application environment; the gateway
+      # refuses to start if a destination names one that is unset.
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:-}
+      PARTNER_HRMS_TOKEN: ${PARTNER_HRMS_TOKEN:-}
+
       # No host bind file is needed in Docker Manager. Add more entries here
       # when another terminal is commissioned.
       DEVICES_YAML: |
         devices:
           - serial: ${DEVICE_SERIAL:-ENS2025079}
             label: ${DEVICE_LABEL:-HQ main entrance}
-            vendor: ${DEVICE_VENDOR:-ebkn}
+            vendor: ${DEVICE_VENDOR:-fkweb}
             mode: listen
+            port: ${DEVICE_PORT:-5005}
             timezone: ${TZ:-Africa/Nairobi}
+            branch: ${DEVICE_BRANCH:-hq}
             direction: ${DEVICE_DIRECTION:-null}
+
+      # Where scans are delivered. Uncomment a webhook block to fan out to an
+      # automation or a partner; each destination keeps its own queue, so one
+      # being down never delays the others.
+      DESTINATIONS_YAML: |
+        destinations:
+          - id: supabase-primary
+            type: supabase
     volumes:
       - spool:/var/lib/smart-sentinel/spool
     ports:
       - "${NATIVE_HTTP_PORT:-8081}:8080"
+      - "${FKWEB_TCP_PORT:-5005}:5005"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.citywalk-biometric.rule=Host(`${GATEWAY_HOSTNAME:-srv1631847.hstgr.cloud}`)"

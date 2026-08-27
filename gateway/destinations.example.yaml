@@ -1,0 +1,93 @@
+# Where scans go. Copy to destinations.yaml and edit.
+#
+# Every destination gets its OWN durable queue on disk. A third-party endpoint
+# that is down, slow or rate-limiting cannot delay a punch reaching Supabase —
+# that independence is the whole reason this file exists.
+#
+# `id` names the spool directory (spool/dest/<id>). Renaming a destination
+# orphans its queue, so pick the name once.
+#
+# If this file is absent the gateway falls back to the single destination named
+# by SINK, exactly as it behaved before fan-out existed. Nothing breaks by not
+# adopting it.
+#
+# SECRETS ARE NEVER WRITTEN HERE. `auth.secretEnv` names an environment
+# variable; the loader refuses a literal secret, an Authorization header set
+# inline, or a credential embedded in a URL, and fails at boot — not at the
+# first scan — if the named variable is missing.
+
+destinations:
+  # The live path: a scan becomes a punch without the Next.js app being
+  # involved, so a deploy or a hosting incident cannot stop people clocking in.
+  # Wired from SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+  - id: supabase-primary
+    type: supabase
+
+  # The HMAC-signed app webhook. The right choice wherever a service-role key
+  # should not live. Wired from APP_URL and BIOMETRIC_WEBHOOK_SECRET.
+  # - id: citywalk-app
+  #   type: app
+
+  # ── Third parties, SaaS and automations ─────────────────────────────────────
+  #
+  # A generic outbound webhook receiving the same NormalizedEvent everything
+  # else gets:
+  #
+  #   { "events": [ {
+  #       "deviceSerial": "ENS2025079",
+  #       "externalUserId": "1027",
+  #       "scannedAt": "2026-08-27T05:15:30.000Z",
+  #       "direction": "in",
+  #       "dedupeKey": "ENS2025079|1027|2026-08-27T05:15:30.000Z",
+  #       "raw": { … }
+  #   } ] }
+  #
+  # `dedupeKey` is stable per scan, derived from the scan and not from receipt
+  # time. Receivers should treat a repeat as a no-op: a terminal replaying its
+  # buffer after an outage must not become a second punch.
+
+  # - id: n8n-payroll
+  #   type: webhook
+  #   url: https://n8n.example.com/webhook/citywalk-punch
+  #   format: batch            # batch = one POST per batch (default)
+  #   auth:
+  #     kind: hmac             # hmac | bearer | header | none
+  #     secretEnv: N8N_WEBHOOK_SECRET
+  #     header: x-signature    # optional; this is the default for hmac
+  #   headers:
+  #     x-tenant: citywalk
+  #   batch_size: 50
+
+  # A partner HRMS that wants one flat record per scan in its own shape.
+  # `format: single` sends one request per scan; `template` is JSON with
+  # {{placeholders}} drawn from the event ({{raw.x}} reaches into raw).
+  # - id: partner-hrms
+  #   type: webhook
+  #   url: https://hrms.partner.example/api/attendance
+  #   format: single
+  #   auth:
+  #     kind: bearer
+  #     secretEnv: PARTNER_HRMS_TOKEN
+  #   template: |
+  #     {
+  #       "employee_ref": "{{externalUserId}}",
+  #       "device": "{{deviceSerial}}",
+  #       "punched_at": "{{scannedAt}}",
+  #       "kind": "{{direction}}",
+  #       "idempotency_key": "{{dedupeKey}}",
+  #       "method": "{{raw.verificationMethod}}"
+  #     }
+
+  # Filters route a subset. Useful when a franchise partner should only see
+  # their own branch, or an overtime automation only cares about exits.
+  # - id: hq-overtime-bot
+  #   type: webhook
+  #   url: https://hooks.example.com/overtime
+  #   auth:
+  #     kind: header
+  #     secretEnv: OVERTIME_BOT_KEY
+  #     header: x-api-key
+  #   filter:
+  #     branches: [hq]         # matches `branch:` in devices.yaml
+  #     directions: [out]      # scans with no reported direction are NOT filtered
+  #     serials: [ENS2025079]

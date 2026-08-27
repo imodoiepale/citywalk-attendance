@@ -3,6 +3,7 @@ import net from 'node:net'
 import { WebSocketServer } from 'ws'
 import type { Config, DeviceConfig } from './config.ts'
 import type { Forwarder } from './forward.ts'
+import type { EventTarget } from './fanout.ts'
 import type { NormalizedEvent, VendorInput } from './types.ts'
 import type { RawPayload } from './archive.ts'
 import { buildRawPayload } from './archive.ts'
@@ -19,11 +20,32 @@ import { camsAuthToken, decryptCamsCallback, validCamsAuthToken } from './vendor
 
 export interface ServerDeps {
   config: Config
-  forwarder: Forwarder<NormalizedEvent>
+  /**
+   * Where accepted scans go. A single Forwarder or a Fanout across many
+   * destinations — the server does not care which, and must not: adding a
+   * destination is a deployment decision, not an ingress one.
+   */
+  forwarder: EventTarget
   /** Optional raw archive. Absent in tests that only care about parsing. */
   archive?: Forwarder<RawPayload>
   /** Called for every accepted push, before forwarding. Used by /status and tests. */
   onEvents?: (events: NormalizedEvent[], source: string) => void
+}
+
+export interface PushResult {
+  events: NormalizedEvent[]
+  rejected: number
+  /** Vendor module that claimed the payload. */
+  vendor: string
+  /**
+   * The reply this firmware is waiting on, or null when it needs none.
+   *
+   * Non-null only when scans were actually accepted. A device we refuse to
+   * record for is a device we must not tell "OK": staying silent makes it hold
+   * the scans and retry, so adding its serial to devices.yaml recovers them
+   * instead of losing the window.
+   */
+  ack: string | null
 }
 
 export interface GatewayStats {
@@ -39,6 +61,32 @@ export interface GatewayStats {
 
 function isLoopback(address: string | undefined): boolean {
   return address === '127.0.0.1' || address === '::1' || address?.startsWith('::ffff:127.') === true
+}
+
+/**
+ * True when the bytes received so far are already a whole JSON document.
+ *
+ * Used to end a raw-TCP frame early. The idle timer below is the general
+ * boundary for protocols that are not self-delimiting, but a terminal that is
+ * blocking on an acknowledgement should not have to wait it out — a quarter of
+ * a second per scan is the difference between a reader that feels instant and
+ * one that feels broken.
+ */
+function isCompleteJson(chunks: Buffer[]): boolean {
+  const total = chunks.reduce((n, c) => n + c.length, 0)
+  // Beyond this it is a template or image upload, not a scan frame; fall back
+  // to the idle timer rather than re-parsing megabytes on every chunk.
+  if (total === 0 || total > 512 * 1024) return false
+
+  const text = Buffer.concat(chunks).toString('utf8').trim()
+  if (!text.startsWith('{') && !text.startsWith('[')) return false
+
+  try {
+    JSON.parse(text)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function createServer(deps: ServerDeps) {
@@ -68,7 +116,7 @@ export function createServer(deps: ServerDeps) {
     input: VendorInput,
     source: string,
     meta: { transport?: string; method?: string; sourceIp?: string } = {}
-  ): { events: NormalizedEvent[]; rejected: number } {
+  ): PushResult {
     stats.received += 1
     stats.lastPushAt = new Date().toISOString()
 
@@ -137,7 +185,7 @@ export function createServer(deps: ServerDeps) {
         // log alone without turning on debug and waiting for another scan.
         preview: input.body.subarray(0, 200).toString('utf8'),
       })
-      return { events: [], rejected: 0 }
+      return { events: [], rejected: 0, vendor: vendorName, ack: null }
     }
 
     archive(parsed[0]?.deviceSerial ?? null, parsed.length)
@@ -181,7 +229,21 @@ export function createServer(deps: ServerDeps) {
       })
     }
 
-    return { events: accepted, rejected }
+    // Built only from accepted scans, and only after they are spooled — so the
+    // "OK" a terminal hears always means the scan is durably ours, never just
+    // that the bytes arrived.
+    let ack: string | null = null
+    if (accepted.length > 0) {
+      try {
+        ack = getParser(vendorName).ack?.(input, accepted) ?? null
+      } catch (e) {
+        // A parser that cannot phrase its acknowledgement must not lose the
+        // scan that is already spooled. Stay silent and let the device retry.
+        log.error('failed to build device acknowledgement', { source, vendor: vendorName, ...errFields(e) })
+      }
+    }
+
+    return { events: accepted, rejected, vendor: vendorName, ack }
   }
 
   // ── HTTP ───────────────────────────────────────────────────────────────────
@@ -207,7 +269,7 @@ export function createServer(deps: ServerDeps) {
         uptimeSeconds: Math.round(process.uptime()),
         vendors: vendorNames(),
         devices: config.devices.map((d) => ({
-          serial: d.serial, vendor: d.vendor, mode: d.mode, label: d.label ?? null,
+          serial: d.serial, vendor: d.vendor, mode: d.mode, label: d.label ?? null, branch: d.branch ?? null,
         })),
         pushes: stats,
         archive: deps.archive
@@ -220,6 +282,10 @@ export function createServer(deps: ServerDeps) {
           lastError: forwarder.lastError,
           totals: forwarder.totals,
         },
+        // Per-destination detail. The aggregate above hides the case that
+        // matters most once there is fan-out: everything healthy except one
+        // third-party webhook quietly building a backlog.
+        destinations: forwarder.destinations?.() ?? null,
       })
     }
 
@@ -275,7 +341,7 @@ export function createServer(deps: ServerDeps) {
         query.vendor = 'cams'
       }
 
-      let result: { events: NormalizedEvent[]; rejected: number }
+      let result: PushResult
       try {
         result = handlePayload(
           {
@@ -304,6 +370,14 @@ export function createServer(deps: ServerDeps) {
 
       if (isCamsCallback) return send(200, { status: 'done' })
 
+      // A vendor module that defines an acknowledgement gets the last word on
+      // what this device hears. FkWeb terminals, for one, match the reply
+      // against the record they sent and re-send until it comes back.
+      if (result.ack !== null) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        return res.end(result.ack)
+      }
+
       // ADMS-family firmware expects the literal string "OK" and retries on
       // anything else. Replying JSON to those devices makes them resend forever.
       if (url.pathname.includes('iclock') || url.pathname.includes('cdata')) {
@@ -329,14 +403,15 @@ export function createServer(deps: ServerDeps) {
         : Array.isArray(data)
           ? Buffer.concat(data)
           : Buffer.from(data as ArrayBuffer)
-      handlePayload(
+      const result = handlePayload(
         { body, path: url.pathname, query, deviceSerial: query.SN ?? query.sn ?? query.serial },
         `ws ${from}`,
         { transport: 'ws', sourceIp: from }
       )
       // Acknowledge: firmware that does not hear back tends to re-send the
-      // whole buffer on the next connection.
-      try { ws.send('OK') } catch { /* peer already gone */ }
+      // whole buffer on the next connection. A vendor-specific acknowledgement
+      // wins over the bare "OK" when the parser supplies one.
+      try { ws.send(result.ack ?? 'OK') } catch { /* peer already gone */ }
     })
 
     ws.on('error', (e) => log.warn('websocket error', { from, ...errFields(e) }))
@@ -357,17 +432,32 @@ export function createServer(deps: ServerDeps) {
       let idle: NodeJS.Timeout | null = null
 
       const flush = () => {
+        if (idle) { clearTimeout(idle); idle = null }
         if (pending.length === 0) return
         const body = Buffer.concat(pending)
         pending = []
-        handlePayload({ body }, `tcp:${port} ${from}`, {
+
+        const result = handlePayload({ body }, `tcp:${port} ${from}`, {
           transport: `tcp:${port}`,
           sourceIp: socket.remoteAddress ?? undefined,
         })
+
+        // For the FkWeb family this reply IS the protocol. The terminal holds
+        // the scan in its own buffer until it hears back and re-sends
+        // otherwise, so a listener that accepts bytes and says nothing is
+        // indistinguishable — from the terminal's side — from no listener.
+        if (result.ack !== null && !socket.destroyed) {
+          socket.write(result.ack, (e) => {
+            if (e) log.warn('tcp acknowledgement write failed', { port, from, ...errFields(e) })
+          })
+        }
       }
 
       socket.on('data', (chunk: Buffer) => {
         pending.push(chunk)
+        // A frame that is already complete JSON needs no boundary guess, and
+        // the device is waiting on the answer.
+        if (isCompleteJson(pending)) return flush()
         if (idle) clearTimeout(idle)
         idle = setTimeout(flush, 250)
       })
