@@ -51,6 +51,24 @@ export interface VendorParser {
    * to record for is also a device we do not tell "OK".
    */
   ack?(input: VendorInput, events: NormalizedEvent[]): string | null
+  /**
+   * The HTTP status this firmware treats as "delivered", for the families where
+   * the STATUS is the acknowledgement and no body is involved.
+   *
+   * Exists because at least one firmware — M82, see vendors/m82/push.ts —
+   * confirms records by status code alone. It re-sends indefinitely on a 200
+   * whatever the body says, and stops on a 204. Roughly thirty body and header
+   * variants were tried against a live device before that became clear, so this
+   * is a real distinction rather than a convenience.
+   *
+   * Returning null means "no opinion" and the transport's normal response is
+   * used. Only consulted when ack() had nothing to say, so no vendor can
+   * accidentally specify both.
+   *
+   * Same rule as ack(): only called once a scan has actually been accepted, so
+   * a device we refuse to record for is never told its record is safe.
+   */
+  ackStatus?(input: VendorInput, events: NormalizedEvent[]): number | null
 }
 
 export interface VendorInput {

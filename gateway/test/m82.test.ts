@@ -92,7 +92,7 @@ test('turns realtime_glog into one event, taking the serial from the header', ()
   const events = parseM82Push(input('realtime_glog', frame(GLOG)))
 
   assert.equal(events.length, 1)
-  const [event] = events
+  const event = events[0]!
   // The serial lives ONLY in the dev_id header on this firmware.
   assert.equal(event.deviceSerial, 'ENS2025079')
   assert.equal(event.externalUserId, '00000001')
@@ -104,12 +104,12 @@ test('does not guess a direction from io_mode', () => {
   // io_mode is present and the shared mapper would read 1 as "out". One
   // observed value from one device is not a mapping, and null defers to the
   // app's device row rather than stamping the estate's punches as exits.
-  const [event] = parseM82Push(input('realtime_glog', frame(GLOG)))
+  const event = parseM82Push(input('realtime_glog', frame(GLOG)))[0]!
   assert.equal(event.direction, null)
 })
 
 test('keeps verify_mode verbatim rather than forcing it into the 0-4 table', () => {
-  const [event] = parseM82Push(input('realtime_glog', frame(GLOG)))
+  const event = parseM82Push(input('realtime_glog', frame(GLOG)))[0]!
   const raw = event.raw as { verifyMode: unknown; verificationMethod: unknown }
 
   assert.equal(raw.verifyMode, 10)
@@ -122,9 +122,10 @@ test('produces a dedupe key stable across the firmware\'s endless retries', () =
   const first = parseM82Push(input('realtime_glog', frame(GLOG)))
   const second = parseM82Push(input('realtime_glog', frame(GLOG)))
 
-  // The device re-sends the same record indefinitely because the ack is
-  // unsolved. Ingestion stays idempotent only if this holds.
-  assert.equal(first[0].dedupeKey, second[0].dedupeKey)
+  // The device re-sends the same record until acknowledged, and a delivery in
+  // flight when the gateway restarts arrives twice regardless. Ingestion stays
+  // idempotent only if this holds.
+  assert.equal(first[0]!.dedupeKey, second[0]!.dedupeKey)
 })
 
 test('emits no attendance event for heartbeats or enrolment pushes', () => {
@@ -165,12 +166,36 @@ test('reads an enrolment push, counting attachment bytes without reassembling', 
   assert.equal(enrollment?.blobBytes, 712)
 })
 
-test('returns no acknowledgement string, because none was found to work', () => {
-  // Nine body shapes, an empty body and eight header variants all left the
-  // retry rate unchanged. See docs/m82-protocol.md section 6.
+test('has no body-based acknowledgement, because the status is the whole reply', () => {
+  // Roughly thirty body and header variants all left the retry rate unchanged,
+  // because all of them were a 200. The acknowledgement turned out to be the
+  // status code alone — see ackStatus below and docs/m82-protocol.md section 6.
   assert.equal(m82Parser.ack?.(input('realtime_glog', frame(GLOG)), []), null)
 })
 
 test('is reachable through the vendor registry', () => {
   assert.equal(getParser('m82').name, 'm82')
+})
+
+test('acknowledges by status, and only for a scan it actually accepted', () => {
+  const glog = input('realtime_glog', frame(GLOG))
+
+  // A punch present in the accepted list is confirmed with 204 — the status IS
+  // the acknowledgement on this firmware; a 200 makes it re-send forever.
+  assert.equal(m82Parser.ackStatus?.(glog, [{ dedupeKey: 'x' } as never]), 204)
+
+  // The same punch with nothing accepted (unknown serial, spool failure) must
+  // NOT be confirmed. Staying on 200 keeps the record on the device, so adding
+  // the serial later recovers it instead of losing the window.
+  assert.equal(m82Parser.ackStatus?.(glog, []), null)
+})
+
+test('answers the heartbeat poll even though it carries no scan', () => {
+  // Answering a poll with a bare 200 leaves the device treating the exchange as
+  // unfinished, which is what an unbounded retry storm looks like from here.
+  assert.equal(m82Parser.ackStatus?.(input('receive_cmd', frame(HEARTBEAT)), []), 204)
+})
+
+test('offers no status for a payload that is not M82 at all', () => {
+  assert.equal(m82Parser.ackStatus?.({ body: frame(GLOG), headers: {} }, []), null)
 })

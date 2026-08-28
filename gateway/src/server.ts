@@ -46,6 +46,11 @@ export interface PushResult {
    * instead of losing the window.
    */
   ack: string | null
+  /**
+   * Status to answer with when the STATUS is the acknowledgement and no body is
+   * involved. Null means the transport's normal response applies.
+   */
+  ackStatus: number | null
 }
 
 export interface GatewayStats {
@@ -185,7 +190,22 @@ export function createServer(deps: ServerDeps) {
         // log alone without turning on debug and waiting for another scan.
         preview: input.body.subarray(0, 200).toString('utf8'),
       })
-      return { events: [], rejected: 0, vendor: vendorName, ack: null }
+      // A payload with no events is not necessarily a payload with no reply.
+      // M82 terminals poll with a heartbeat that yields no scan but still needs
+      // the right status back; answer it with a bare 200 and the device treats
+      // the exchange as unfinished. The parser is asked with an empty event
+      // list, so it can answer a poll while still refusing to confirm a scan
+      // it cannot see.
+      let idleStatus: number | null = null
+      try {
+        idleStatus = getParser(vendorName).ackStatus?.({
+          ...input,
+          timezone: hinted?.timezone ?? config.timezone,
+        }, []) ?? null
+      } catch (e) {
+        log.error('failed to choose acknowledgement status', { source, vendor: vendorName, ...errFields(e) })
+      }
+      return { events: [], rejected: 0, vendor: vendorName, ack: null, ackStatus: idleStatus }
     }
 
     archive(parsed[0]?.deviceSerial ?? null, parsed.length)
@@ -243,7 +263,23 @@ export function createServer(deps: ServerDeps) {
       }
     }
 
-    return { events: accepted, rejected, vendor: vendorName, ack }
+    // Status-only acknowledgements are asked for even when there were no
+    // events, because for those firmwares a heartbeat is a request that still
+    // needs answering correctly — and answering it wrongly is what starts an
+    // unbounded retry storm. The parser is handed the accepted events and
+    // decides for itself: it must not confirm a SCAN it cannot see in that
+    // list, which keeps the "never acknowledge what you did not store" rule
+    // intact while still letting it answer a poll.
+    let ackStatus: number | null = null
+    if (ack === null) {
+      try {
+        ackStatus = getParser(vendorName).ackStatus?.(input, accepted) ?? null
+      } catch (e) {
+        log.error('failed to choose acknowledgement status', { source, vendor: vendorName, ...errFields(e) })
+      }
+    }
+
+    return { events: accepted, rejected, vendor: vendorName, ack, ackStatus }
   }
 
   // ── HTTP ───────────────────────────────────────────────────────────────────
@@ -376,6 +412,15 @@ export function createServer(deps: ServerDeps) {
       if (result.ack !== null) {
         res.writeHead(200, { 'content-type': 'application/json' })
         return res.end(result.ack)
+      }
+
+      // Some firmware reads the status alone. M82 terminals re-send a record
+      // indefinitely on a 200 — no matter what the body says — and treat a 204
+      // as "stored, forget it". Answering with the wrong one is invisible until
+      // you notice the same punch arriving three times a second.
+      if (result.ackStatus !== null) {
+        res.writeHead(result.ackStatus)
+        return res.end()
       }
 
       // ADMS-family firmware expects the literal string "OK" and retries on

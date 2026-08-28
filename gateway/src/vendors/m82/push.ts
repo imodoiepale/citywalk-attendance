@@ -305,21 +305,71 @@ export function readM82Enrollment(input: VendorInput): M82Enrollment | null {
   }
 }
 
+/**
+ * The status this firmware treats as "stored, forget it".
+ *
+ * THE ACKNOWLEDGEMENT IS THE STATUS CODE. There is no reply body at all.
+ *
+ * This cost a long search to establish, and the negative results are worth
+ * keeping because they are what makes the positive one believable. Held against
+ * a live terminal, roughly thirty candidates were tried: nine JSON body shapes,
+ * length-prefixed and bare; an empty body; echoing the record's own user_id and
+ * io_time back; eight response-header variants including echoed request_code,
+ * dev_id and trans_id; and a dozen command-shaped replies to the heartbeat.
+ * Every one of them produced an identical retry rate, because every one of them
+ * was a 200.
+ *
+ * A 204 stops the retries outright. Verified over a full minute: the repeated
+ * punch and the enrolment push both went to zero while the heartbeat kept
+ * arriving — which is the distinction that matters, because a device that has
+ * crashed or given up looks exactly like a satisfied one if you only check that
+ * the noise stopped.
+ *
+ * The reading that fits: 200 means "there is content here for you", and a
+ * device that cannot parse that content concludes the exchange failed and
+ * re-sends. 204 means "nothing to say", which it takes as success.
+ *
+ * The "never acknowledge a scan you did not store" rule is preserved by looking
+ * at `events`: a punch is confirmed only when it is in the accepted list, so a
+ * device whose serial is not in the allowlist gets a 200, keeps its records,
+ * and can be recovered by adding the serial later.
+ */
+function m82AckStatus(input: VendorInput, events: NormalizedEvent[]): number | null {
+  const requestCode = m82RequestCode(input)
+  if (!requestCode) return null
+
+  switch (requestCode) {
+    // A poll, not a record. Nothing can be lost by answering it, and answering
+    // it wrongly leaves the device convinced the conversation never completed.
+    case M82_HEARTBEAT:
+      return 204
+
+    // Confirmed only when the scan is actually in the accepted list — which the
+    // server builds after spooling, never merely on receipt.
+    case M82_GLOG:
+      return events.length > 0 ? 204 : null
+
+    // Acknowledged even though enrolment ingestion is not implemented yet.
+    //
+    // The alternative is an unbounded retry storm — this arrives three times a
+    // second alongside every punch — and the trade is acceptable because the
+    // data is not destroyed by acknowledging it: the templates and photo remain
+    // on the terminal, and re-registering the server address makes it replay
+    // the whole user list, which is how we came to see these in the first
+    // place. Revisit once readM82Enrollment is wired to storage, at which point
+    // this should become conditional on the record actually being sealed.
+    case M82_ENROLL:
+      return 204
+
+    default:
+      return null
+  }
+}
+
 export const m82Parser: VendorParser = {
   name: 'm82',
   parse: parseM82Push,
-  // No application-level acknowledgement is emitted, and that is a finding
-  // rather than an omission.
-  //
-  // Held against the live device six seconds at a time, nine JSON body shapes
-  // (length-prefixed and bare), an EMPTY body, and eight response-header
-  // variants all produced an identical retry rate. An empty body performing
-  // exactly as well as a well-formed one means the device is not reading our
-  // reply for its acknowledgement at all — so there is no string to return here
-  // that would help. The confirmation evidently travels by another route, most
-  // likely a command issued in reply to `receive_cmd`.
-  //
-  // Consequence to plan around: this device re-sends indefinitely. Ingestion
-  // must stay idempotent, which dedupeKey above ensures.
+  // No body-based acknowledgement exists for this firmware; see m82AckStatus.
   ack: () => null,
+  ackStatus: m82AckStatus,
 }
