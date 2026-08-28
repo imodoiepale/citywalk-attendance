@@ -76,7 +76,24 @@ if (config.archiveRaw && !rawSink) {
   })
 }
 
-const gateway = createServer({ config, forwarder: fanout, archive })
+const gateway = createServer({
+  config, forwarder: fanout, archive,
+  // An M82 terminal pushes its own users unprompted — see
+  // vendors/m82/assemble.ts. It lands here as base64, already reassembled from
+  // however many blocks it took; reuse the exact sealing and storage path the
+  // cloud channel's remote-enrolment flow uses, rather than a second one, so
+  // there is one place that decides how a template comes to rest.
+  onM82Credential: (credential) => {
+    void storeCapturedCredential({
+      deviceSerial: credential.deviceSerial,
+      externalUserId: credential.externalUserId,
+      backupNum: credential.backupNumber,
+      template: credential.templateBase64,
+      name: credential.name,
+      admin: null,
+    })
+  },
+})
 
 // The cloud channel: terminals dial in and stay connected, so commands can go
 // back down the same socket. Punches arriving this way go through the very same

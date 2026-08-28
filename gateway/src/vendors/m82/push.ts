@@ -55,6 +55,25 @@ export interface M82Body {
 }
 
 /**
+ * Builds a body in this firmware's own wire format: a uint32 little-endian
+ * length, then that many bytes of JSON. No attachments — every reply we send
+ * is a bare command, never a template or photo.
+ *
+ * Exists because the generic fallback response (loose JSON, no length prefix)
+ * turned out not to be equivalent to this from the device's side: verified
+ * live, a bare 200 with no length-prefixed body did not trigger a device
+ * holding 37 locally-logged punches to flush any of them, while a 200
+ * carrying a body in this exact shape did, in every one of a dozen trials —
+ * regardless of what the JSON inside it said. See docs/m82-protocol.md.
+ */
+export function encodeM82Body(json: Record<string, unknown>): Buffer {
+  const body = Buffer.from(JSON.stringify(json), 'utf8')
+  const len = Buffer.alloc(4)
+  len.writeUInt32LE(body.length, 0)
+  return Buffer.concat([len, body])
+}
+
+/**
  * Splits the wire format: a uint32 little-endian length, that many bytes of
  * JSON, then any binary attachments.
  *
@@ -93,7 +112,7 @@ export function m82RequestCode(input: VendorInput): string | null {
 }
 
 /** The `dev_id` header — the serial, which never appears in the body. */
-function m82DeviceId(input: VendorInput): string | null {
+export function m82DeviceId(input: VendorInput): string | null {
   const value = input.headers?.['dev_id']
   return typeof value === 'string' && value.length > 0 ? value : null
 }
@@ -339,27 +358,38 @@ function m82AckStatus(input: VendorInput, events: NormalizedEvent[]): number | n
   if (!requestCode) return null
 
   switch (requestCode) {
-    // A poll, not a record. Nothing can be lost by answering it, and answering
-    // it wrongly leaves the device convinced the conversation never completed.
+    // NOT 204. This is not the transport-retry acknowledgement (that logic
+    // applies per-record, to realtime_glog/realtime_enroll_data below) — this
+    // is what tells the device whether it has anything queued to send at all.
+    //
+    // Verified directly against hardware: a device holding 37 locally-logged
+    // punches sent NONE of them spontaneously. Answering receive_cmd with 204
+    // is what was suppressing the flush — not a framing or ack bug on the
+    // punches themselves, which is why every earlier fix here had no visible
+    // effect on this particular symptom. Answering with 200 (a dozen different
+    // bodies were tried; the body content made no difference) made the device
+    // start pushing its backlog on the very next heartbeat.
+    //
+    // Returning null here, not 204, so the transport's default 200 applies —
+    // matching realtime_glog's own rule of "204 only once truly confirmed,
+    // otherwise no opinion." Do not change this back to 204 without a live
+    // test: it looks harmless (heartbeats kept a clean cadence under 204 for
+    // hours) and is not.
     case M82_HEARTBEAT:
-      return 204
+      return null
 
     // Confirmed only when the scan is actually in the accepted list — which the
     // server builds after spooling, never merely on receipt.
     case M82_GLOG:
       return events.length > 0 ? 204 : null
 
-    // Acknowledged even though enrolment ingestion is not implemented yet.
-    //
-    // The alternative is an unbounded retry storm — this arrives three times a
-    // second alongside every punch — and the trade is acceptable because the
-    // data is not destroyed by acknowledging it: the templates and photo remain
-    // on the terminal, and re-registering the server address makes it replay
-    // the whole user list, which is how we came to see these in the first
-    // place. Revisit once readM82Enrollment is wired to storage, at which point
-    // this should become conditional on the record actually being sealed.
+    // NOT decided here. Enrolment can span several blocks (blk_no), and
+    // confirming block 1 before the rest have arrived risks the device
+    // concluding the whole transfer is delivered and never sending the
+    // remainder — server.ts owns this decision because it is the one holding
+    // the in-progress assembly, which this function cannot see.
     case M82_ENROLL:
-      return 204
+      return null
 
     default:
       return null

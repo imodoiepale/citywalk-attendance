@@ -190,10 +190,16 @@ test('acknowledges by status, and only for a scan it actually accepted', () => {
   assert.equal(m82Parser.ackStatus?.(glog, []), null)
 })
 
-test('answers the heartbeat poll even though it carries no scan', () => {
-  // Answering a poll with a bare 200 leaves the device treating the exchange as
-  // unfinished, which is what an unbounded retry storm looks like from here.
-  assert.equal(m82Parser.ackStatus?.(input('receive_cmd', frame(HEARTBEAT)), []), 204)
+test('the heartbeat gets no opinion, not 204 — that would starve the backlog', () => {
+  // Discovered directly against hardware: a device holding 37 locally-logged
+  // punches sent NONE spontaneously while receive_cmd was answered with 204.
+  // That status is not "poll answered, all good" for this request — it is "I
+  // have nothing for you," and the device reads it as a reason not to flush
+  // its backlog. A dozen different 200 bodies all triggered the flush; the
+  // body content did not matter, only the status did. So this returns null,
+  // letting the transport's default 200 apply, matching the same rule
+  // realtime_glog follows: 204 only once something is truly confirmed.
+  assert.equal(m82Parser.ackStatus?.(input('receive_cmd', frame(HEARTBEAT)), []), null)
 })
 
 test('offers no status for a payload that is not M82 at all', () => {

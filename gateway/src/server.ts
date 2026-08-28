@@ -10,6 +10,8 @@ import { buildRawPayload } from './archive.ts'
 import { getParser, vendorNames } from './vendors/index.ts'
 import { log, errFields } from './log.ts'
 import { camsAuthToken, decryptCamsCallback, validCamsAuthToken } from './vendors/cams/security.ts'
+import { M82_ENROLL, M82_HEARTBEAT, m82RequestCode, m82DeviceId, encodeM82Body } from './vendors/m82/push.ts'
+import { M82Assembler } from './vendors/m82/assemble.ts'
 
 // The listening half of the gateway: terminals push, this receives.
 //
@@ -30,6 +32,28 @@ export interface ServerDeps {
   archive?: Forwarder<RawPayload>
   /** Called for every accepted push, before forwarding. Used by /status and tests. */
   onEvents?: (events: NormalizedEvent[], source: string) => void
+  /**
+   * Called once a `realtime_enroll_data` push from an M82 terminal has been
+   * fully reassembled — see vendors/m82/assemble.ts. One call per credential
+   * slot the device attached (finger, card, face...), each with its raw
+   * template bytes.
+   *
+   * A terminal pushing this UNPROMPTED is the whole reason it exists as a
+   * separate hook from onEvents: it is not an attendance event, and the
+   * payload is biometric personal data that must be sealed before storage —
+   * this hook is exactly the boundary where that has not happened yet, so
+   * whatever consumes it must seal immediately, not log or forward it raw.
+   */
+  onM82Credential?: (credential: M82CredentialCapture) => void
+}
+
+export interface M82CredentialCapture {
+  deviceSerial: string
+  externalUserId: string
+  name: string | null
+  backupNumber: number
+  /** Raw template bytes for this slot, base64-encoded for a text pipeline. */
+  templateBase64: string
 }
 
 export interface PushResult {
@@ -51,6 +75,19 @@ export interface PushResult {
    * involved. Null means the transport's normal response applies.
    */
   ackStatus: number | null
+  /**
+   * Raw bytes to send alongside ackStatus, for the one case where a firmware
+   * needs BOTH a specific status AND a body in its own wire format — not the
+   * generic `{received, rejected}` JSON the transport falls back to.
+   *
+   * Exists because of a hard-won distinction on M82 hardware: a bare 200 with
+   * no body did NOT trigger the device to flush its locally-logged backlog,
+   * even though a 200 carrying a real length-prefixed body did, in a dozen
+   * separate live trials. The generic fallback response sends loose JSON with
+   * no length prefix — plausibly indistinguishable, from the device's side,
+   * from no body at all. Ignored when ackStatus is null.
+   */
+  ackBody: Buffer | null
 }
 
 export interface GatewayStats {
@@ -109,6 +146,79 @@ export function createServer(deps: ServerDeps) {
   }
 
   const bySerial = new Map<string, DeviceConfig>(config.devices.map((d) => [d.serial, d]))
+
+  // M82 enrolment payloads arrive split across several POSTs, all sharing a
+  // request_code and serial and numbered by blk_no. One assembler instance
+  // per server, because the blocks of one push must be collected across the
+  // separate HTTP requests that carry them.
+  const m82Assembler = new M82Assembler()
+
+  /**
+   * Feeds one block of an M82 `realtime_enroll_data` push to the assembler,
+   * and — once the whole push is in hand — emits one onM82Credential call per
+   * non-empty credential slot.
+   *
+   * Returns whether the push is now complete, which is what decides the
+   * acknowledgement: see the M82_ENROLL branch in handlePayload for why that
+   * decision cannot be made by the parser alone.
+   */
+  function handleM82Enrollment(input: VendorInput, source: string): boolean {
+    const serial = m82DeviceId(input) ?? input.deviceSerial ?? null
+    if (!serial) {
+      log.warn('M82 enrolment push with no dev_id header; cannot assemble', { source })
+      return false
+    }
+
+    const blkNo = Number(input.headers?.['blk_no'])
+    const assembled = m82Assembler.add(
+      { serial, requestCode: M82_ENROLL },
+      Number.isFinite(blkNo) ? blkNo : null,
+      input.body
+    )
+    if (!assembled) return false   // more blocks needed, or the frame was malformed
+
+    const { json, blobs } = assembled
+    const externalUserId = json?.['user_id']
+    const userName = json?.['user_name']
+    const array = json?.['enroll_data_array']
+
+    if (typeof externalUserId !== 'string' || !Array.isArray(array)) {
+      log.warn('M82 enrolment push assembled but had no usable user_id/enroll_data_array', { source, serial })
+      return true   // still complete — do not leave the device retrying a push we cannot use
+    }
+
+    let emitted = 0
+    for (const entry of array) {
+      if (!entry || typeof entry !== 'object') continue
+      const row = entry as Record<string, unknown>
+      const backupNumber = Number(row['backup_number'])
+      const blobRef = row['enroll_data']
+      if (!Number.isFinite(backupNumber) || typeof blobRef !== 'string') continue
+
+      // "BIN_1", "BIN_2"... are 1-indexed into the blobs in wire order.
+      const match = /^BIN_(\d+)$/.exec(blobRef)
+      if (!match) continue
+      const blob = blobs[Number(match[1]) - 1]
+
+      // A credential slot with no captured data yet — the device reserves the
+      // slot before it is filled. Nothing to store.
+      if (!blob || blob.length === 0) continue
+
+      deps.onM82Credential?.({
+        deviceSerial: serial,
+        externalUserId,
+        name: typeof userName === 'string' ? userName : null,
+        backupNumber,
+        templateBase64: blob.toString('base64'),
+      })
+      emitted += 1
+    }
+
+    log.info('M82 enrolment push assembled', {
+      source, serial, externalUserId, credentials: emitted, totalBytes: assembled.totalBytes,
+    })
+    return true
+  }
 
   /**
    * Turns one received payload into forwarded events.
@@ -181,6 +291,44 @@ export function createServer(deps: ServerDeps) {
     }
 
     if (parsed.length === 0) {
+      // An M82 enrolment push is detected by its own request_code header,
+      // never by vendorName — vendorName is only updated when a candidate's
+      // parse() returns events, and an enrolment push correctly returns none,
+      // so vendorName here could still be whatever candidate was tried first.
+      const requestCode = m82RequestCode(input)
+
+      if (requestCode === M82_ENROLL) {
+        // Acknowledgement for this one is decided HERE, not by the parser's
+        // ackStatus, because it must track assembly progress the parser
+        // cannot see. Confirming block 1 before every block has arrived risks
+        // the device concluding the WHOLE transfer is delivered and never
+        // sending the rest — we have never yet observed a blk_no beyond 1,
+        // which is consistent with that risk being real rather than
+        // hypothetical. So: 204 only once assembly is complete: otherwise no
+        // opinion, which lets the transport's default apply and the device
+        // keep sending.
+        const complete = handleM82Enrollment(input, source)
+        return {
+          events: [], rejected: 0, vendor: vendorName, ack: null,
+          ackStatus: complete ? 204 : null, ackBody: null,
+        }
+      }
+
+      // The M82 heartbeat: not just answered, but answered with a real body in
+      // the device's own wire format. This is NOT decided by the parser's
+      // ackStatus for the same reason enrolment isn't — server.ts is where the
+      // hard-won behaviour lives. A bare 200 with no body (the generic
+      // fallback, further down) left a device holding 37 locally-logged
+      // punches sending none of them; a 200 carrying this exact length-prefixed
+      // shape made it flush its backlog on the very next cycle, in every one of
+      // a dozen live trials, regardless of what the JSON inside said.
+      if (requestCode === M82_HEARTBEAT) {
+        return {
+          events: [], rejected: 0, vendor: vendorName, ack: null,
+          ackStatus: 200, ackBody: encodeM82Body({ result: 0 }),
+        }
+      }
+
       stats.unparsed += 1
       archive(input.deviceSerial ?? null, 0)
       log.warn('push produced no events (archived for analysis)', {
@@ -190,12 +338,10 @@ export function createServer(deps: ServerDeps) {
         // log alone without turning on debug and waiting for another scan.
         preview: input.body.subarray(0, 200).toString('utf8'),
       })
+
       // A payload with no events is not necessarily a payload with no reply.
-      // M82 terminals poll with a heartbeat that yields no scan but still needs
-      // the right status back; answer it with a bare 200 and the device treats
-      // the exchange as unfinished. The parser is asked with an empty event
-      // list, so it can answer a poll while still refusing to confirm a scan
-      // it cannot see.
+      // Vendors other than M82 (handled above) may still have a firmware-level
+      // opinion about how to answer a payload that produced nothing.
       let idleStatus: number | null = null
       try {
         idleStatus = getParser(vendorName).ackStatus?.({
@@ -205,7 +351,7 @@ export function createServer(deps: ServerDeps) {
       } catch (e) {
         log.error('failed to choose acknowledgement status', { source, vendor: vendorName, ...errFields(e) })
       }
-      return { events: [], rejected: 0, vendor: vendorName, ack: null, ackStatus: idleStatus }
+      return { events: [], rejected: 0, vendor: vendorName, ack: null, ackStatus: idleStatus, ackBody: null }
     }
 
     archive(parsed[0]?.deviceSerial ?? null, parsed.length)
@@ -279,7 +425,7 @@ export function createServer(deps: ServerDeps) {
       }
     }
 
-    return { events: accepted, rejected, vendor: vendorName, ack, ackStatus }
+    return { events: accepted, rejected, vendor: vendorName, ack, ackStatus, ackBody: null }
   }
 
   // ── HTTP ───────────────────────────────────────────────────────────────────
@@ -418,7 +564,16 @@ export function createServer(deps: ServerDeps) {
       // indefinitely on a 200 — no matter what the body says — and treat a 204
       // as "stored, forget it". Answering with the wrong one is invisible until
       // you notice the same punch arriving three times a second.
+      //
+      // ackBody is the one exception to "the body doesn't matter": the M82
+      // heartbeat needs its 200 to carry a real body in the device's own wire
+      // format, or it does not trigger the backlog flush it exists to trigger.
+      // See the M82_HEARTBEAT branch in handlePayload.
       if (result.ackStatus !== null) {
+        if (result.ackBody) {
+          res.writeHead(result.ackStatus, { 'content-type': 'application/octet-stream' })
+          return res.end(result.ackBody)
+        }
         res.writeHead(result.ackStatus)
         return res.end()
       }
