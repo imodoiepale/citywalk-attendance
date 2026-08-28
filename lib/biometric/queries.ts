@@ -335,3 +335,50 @@ export async function hasLiveConsent(profileId: string): Promise<boolean> {
     .maybeSingle()
   return Boolean(data)
 }
+
+/** This person's enrollment number, if one has been mapped. */
+export async function getEnrollmentForProfile(
+  profileId: string
+): Promise<{ deviceUserId: string; vendor: string } | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('biometric_enrollments')
+    .select('device_user_id, vendor')
+    .eq('profile_id', profileId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return data ? { deviceUserId: data.device_user_id, vendor: data.vendor } : null
+}
+
+export interface ManageableDevice {
+  serial: string
+  name: string
+  online: boolean
+  fpAlgo: string | null
+}
+
+/**
+ * Readers that can actually be commanded.
+ *
+ * Only the cloud family: the others are push-only, so offering them as an
+ * enrolment target would queue a command nothing will ever collect.
+ */
+export async function listManageableDevices(): Promise<ManageableDevice[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('biometric_devices')
+    .select('serial_no, name, fp_algo, cloud_connected_at')
+    .eq('protocol', 'cloud')
+    .eq('is_active', true)
+    .order('name')
+
+  const cutoff = Date.now() - 5 * 60_000
+  return (data ?? []).map((row) => ({
+    serial: row.serial_no,
+    name: row.name,
+    online: row.cloud_connected_at !== null && new Date(row.cloud_connected_at).getTime() > cutoff,
+    fpAlgo: row.fp_algo,
+  }))
+}

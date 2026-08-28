@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import BiometricPanel from '@/components/devices/BiometricPanel'
 
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePermission('admin.users', 'full')
@@ -89,6 +90,8 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           </form>
         </CardContent>
       </Card>
+
+      <BiometricPanel profileId={user.id} consentVersion="2026-08-v1" />
 
       <p className="text-xs text-muted-foreground">
         Role and activation are changed from the{' '}
