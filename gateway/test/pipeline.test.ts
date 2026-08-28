@@ -293,6 +293,7 @@ function config(over: Partial<Config> = {}): Config {
     supabaseKey: 'k'.repeat(64),
     httpPort: 0,
     tcpPorts: [],
+    cloudPort: 0,
     spoolDir: 'unused',
     timezone: 'Africa/Nairobi',
     strictSerials: true,

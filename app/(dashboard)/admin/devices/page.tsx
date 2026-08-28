@@ -139,7 +139,14 @@ export default async function DevicesPage() {
             {devices.map((device, index) => (
               <TableRow key={device.id}>
                   <TableRowNumber value={index + 1} />
-                <TableCell className="font-medium">{device.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/admin/devices/${encodeURIComponent(device.serialNo)}`}
+                    className="hover:underline"
+                  >
+                    {device.name}
+                  </Link>
+                </TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">
                   {device.serialNo}
                 </TableCell>

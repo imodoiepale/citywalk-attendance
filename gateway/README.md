@@ -69,6 +69,80 @@ Raw TCP cannot go through Traefik — it is not HTTP — so the container publis
 5005 itself. `STRICT_SERIALS` is what stands between that port and anyone able
 to reach it; keep it on and keep `devices.yaml` accurate.
 
+## The cloud channel: two-way device management (TCP 7788)
+
+FkWeb is push-only — the terminal talks, we listen. The **cloud protocol** is the
+other half: the terminal dials in and *stays connected*, so commands go back
+down the same socket. Because the device initiates, it works from the VPS
+through NAT with nothing installed at the branch.
+
+Spec: [`attendance/docs/cloud-protocol.md`](https://github.com/imodoiepale/attendance/blob/main/docs/cloud-protocol.md).
+
+What it unlocks:
+
+- **Remote enrolment.** `adduser` asks a reader to capture; the person presents a
+  finger once; the template arrives as `senduser` and replicates to every other
+  compatible reader. No walking the estate with each new hire.
+- **Log backfill.** `getnewlog` recovers punches recorded while the link was
+  down. The push path cannot do this — a scan the device already discarded is
+  gone — so this is the difference between "we lost Tuesday morning" and not.
+- **Device management.** Clock sync, reboot, open door, volume and verify mode,
+  access schedules, anti-passback, per-user validity windows.
+- **Free inventory.** Registration reports model, firmware, `fpalgo` and
+  capacity/usage counters, so "is that reader full?" is a query, not a site visit.
+
+Set `GATEWAY_CLOUD_PORT=7788`, publish the port, and set the device to its
+cloud/ADMS server mode. It accepts **both** WebSocket and raw JSON over TCP on
+that port, because the vendor software runs both and firmware varies.
+
+### Two constraints, and why the code looks the way it does
+
+The protocol has **no request ids** — a reply is `{"ret":"<same name as cmd>"}`.
+So exactly one command is in flight per device and the rest queue behind it.
+That is a correctness requirement, not a simplification: two outstanding
+commands make the first reply ambiguous, and a wrong match would answer the
+wrong question silently. Reads are **paged** (`stn:true`, then `stn:false`), and
+an empty page is the only reliable end-of-data signal.
+
+### How the app sends a command
+
+It doesn't — not directly. The app writes a row to `device_commands`; the
+gateway polls that table, dispatches, and writes the outcome back. **No inbound
+control API on the VPS**, no second shared secret, and commands queue correctly
+while the app is down, the gateway is down, or the device is offline. A command
+for an offline reader stays queued and goes out when it reconnects.
+
+Apply `supabase/migrations/20260828000001_biometric_credentials.sql` before this
+works.
+
+### Templates are encrypted before they reach the database
+
+`BIOMETRIC_TEMPLATE_KEY` is **required to store any credential**. Templates are
+sealed with AES-256-GCM in the gateway, so a database dump is ciphertext and no
+database role can decrypt one. Without the key the gateway refuses to store a
+captured credential rather than writing biometric data in the clear.
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Back it up where you would back up a root password: lose it and every stored
+credential is unreadable, which means re-enrolling the estate.
+`BIOMETRIC_TEMPLATE_KEYS_PREVIOUS` holds retired keys so a rotation does not
+break existing rows.
+
+### Testing it without hardware
+
+A simulator speaks the device side — registers, answers commands, pushes punches
+and captured credentials:
+
+```bash
+node src/probe/simulate-cloud.ts --serial ENS2025079 --port 7788 --punch 1027
+```
+
+This is how the whole feature was built and is covered by tests; it is also the
+fastest way to prove a deployment works before a terminal is anywhere near it.
+
 ## Cams Web API v3 is a separate, optional path
 
 | Mode | Where the URL is configured | URL |
@@ -208,6 +282,25 @@ ZKTeco fleet.
 Until the migration exists, event delivery remains in the VPS spool and logs
 `ingest_biometric_events not found`; it is delayed, not discarded.
 
+## One client per command
+
+For running several clients on one host, `deploy/install.sh` renders a complete
+per-client stack — its own container, spool volume, Supabase project and ports —
+and brings it up under its own Compose project:
+
+```bash
+export SUPABASE_SERVICE_ROLE_KEY=...   # keeps it out of shell history
+./deploy/install.sh --client acme --supabase-url https://xxxx.supabase.co --hostname gateway.acme.example.com --serial ENS2025079 --branch hq
+```
+
+It picks host ports that do not collide with clients already installed, generates
+a `BIOMETRIC_TEMPLATE_KEY`, writes `.env` at mode 600, and prints the firewall
+and terminal settings to apply. `--no-start` renders without launching.
+
+Not a `curl … | bash` one-liner on purpose: this writes a service-role key and a
+biometric encryption key to disk and starts a container, and piping a remote
+script into a root shell to save one step is not a trade worth making.
+
 ## Deploy as a Hostinger Docker application
 
 The simplest hPanel route after these files are committed and pushed:
@@ -217,7 +310,7 @@ The simplest hPanel route after these files are committed and pushed:
 3. Use this Compose URL:
 
    ```text
-   https://raw.githubusercontent.com/imodoiepale/citywalk-attendance/codex/hostinger-biometric-gateway/gateway/docker-compose.hostinger.yml
+   https://raw.githubusercontent.com/imodoiepale/citywalk-attendance/main/gateway/docker-compose.hostinger.yml
    ```
 
 4. Add these application environment values in Hostinger:

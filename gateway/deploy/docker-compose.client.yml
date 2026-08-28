@@ -1,0 +1,52 @@
+# Per-client gateway stack.
+#
+# One isolated instance per client: its own container, its own spool volume, its
+# own Supabase project, its own ports. Rendered and launched by install.sh,
+# which is what keeps the port assignments from colliding when several clients
+# share a VPS.
+#
+# Traefik on the host terminates HTTPS for the HTTP/WebSocket side. The FkWeb
+# and cloud ports are raw TCP — not HTTP — so they are published directly and
+# cannot go through a reverse proxy.
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ${CLIENT_SLUG}-gateway
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GATEWAY_HTTP_PORT: 8080
+      SPOOL_DIR: /var/lib/smart-sentinel/spool
+      DEVICES_FILE: /app/devices.yaml
+      DESTINATIONS_FILE: /app/destinations.yaml
+    volumes:
+      # Read-only: a compromised container must not be able to add itself a
+      # device or a destination.
+      - ./devices.yaml:/app/devices.yaml:ro
+      - ./destinations.yaml:/app/destinations.yaml:ro
+      - spool:/var/lib/smart-sentinel/spool
+    ports:
+      # host:container. The host side is assigned per client by install.sh.
+      - "${HTTP_PORT}:8080"
+      - "${FKWEB_PORT}:5005"
+      - "${CLOUD_PORT}:7788"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${CLIENT_SLUG}-gateway.rule=Host(`${GATEWAY_HOSTNAME}`)"
+      - "traefik.http.routers.${CLIENT_SLUG}-gateway.entrypoints=websecure"
+      - "traefik.http.routers.${CLIENT_SLUG}-gateway.tls=true"
+      - "traefik.http.routers.${CLIENT_SLUG}-gateway.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${CLIENT_SLUG}-gateway.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  spool:
+    name: ${CLIENT_SLUG}-spool

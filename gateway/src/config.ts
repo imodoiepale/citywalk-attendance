@@ -56,6 +56,15 @@ export interface Config {
   secret?: string
   httpPort: number
   tcpPorts: number[]
+  /**
+   * Port for the bidirectional cloud protocol, where terminals dial in and
+   * stay connected so commands can go back down the same socket. 0 disables it.
+   *
+   * Separate from tcpPorts because that path is stateless push-and-forget,
+   * while this one holds a session per device — the only route to a terminal
+   * that sits behind NAT.
+   */
+  cloudPort: number
   spoolDir: string
   timezone: string
   /** Reject pushes whose serial is not in devices.yaml. */
@@ -182,6 +191,7 @@ export function loadConfig(): Config {
     httpPort: Number(process.env.GATEWAY_HTTP_PORT ?? 8080),
     tcpPorts: (process.env.GATEWAY_TCP_PORTS ?? '')
       .split(',').map((p) => Number(p.trim())).filter((p) => Number.isFinite(p) && p > 0),
+    cloudPort: Number(process.env.GATEWAY_CLOUD_PORT ?? 7788),
     spoolDir: path.resolve(process.env.SPOOL_DIR ?? 'spool'),
     timezone,
     // Default on. The push endpoints cannot authenticate a device — the

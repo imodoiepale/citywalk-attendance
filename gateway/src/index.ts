@@ -4,7 +4,12 @@ import { createForwarder } from './forward.ts'
 import { createServer } from './server.ts'
 import { Fanout } from './fanout.ts'
 import { buildDestinations, rawDelivery } from './destinations/index.ts'
-import type { RawPayload } from './archive.ts'
+import { CloudServer } from './cloud/session.ts'
+import { CommandQueue } from './cloud/queue.ts'
+import { createPersistence } from './cloud/persistence.ts'
+import { loadTemplateKeys, seal } from './cloud/crypto.ts'
+import { credentialTypeForSlot, type CapturedCredential } from './cloud/inbound.ts'
+import { buildRawPayload, type RawPayload } from './archive.ts'
 import { log, errFields } from './log.ts'
 
 // Entry point.
@@ -73,9 +78,122 @@ if (config.archiveRaw && !rawSink) {
 
 const gateway = createServer({ config, forwarder: fanout, archive })
 
+// The cloud channel: terminals dial in and stay connected, so commands can go
+// back down the same socket. Punches arriving this way go through the very same
+// Fanout as every other transport — one delivery path, one dedupe rule.
+const knownSerials = new Set(config.devices.map((d) => d.serial))
+const deviceTimezones = new Map(config.devices.map((d) => [d.serial, d.timezone]))
+
+// Device management needs a database of its own — the command queue and the
+// credential store — and that is only the Supabase path. A webhook-only
+// deployment can still receive punches; it just cannot manage devices.
+const persistence = config.supabaseUrl && config.supabaseKey
+  ? createPersistence({ url: config.supabaseUrl, serviceRoleKey: config.supabaseKey })
+  : null
+
+// Templates are sealed here, before they reach Postgres, so a database dump is
+// ciphertext. No key means no credential storage at all — refusing is correct,
+// because the alternative is writing biometric data in the clear.
+const templateKeys = loadTemplateKeys()
+
+async function storeCapturedCredential(credential: CapturedCredential): Promise<void> {
+  // Never log the template itself; it is biometric data and this is a log file.
+  const context = {
+    serial: credential.deviceSerial,
+    enrollId: credential.externalUserId,
+    backupNum: credential.backupNum,
+    templateBytes: credential.template.length,
+  }
+
+  if (!persistence) {
+    log.error('captured a credential but no Supabase destination is configured; discarding', context)
+    return
+  }
+  if (!templateKeys) {
+    log.error('captured a credential but BIOMETRIC_TEMPLATE_KEY is not set; discarding', {
+      ...context,
+      hint: 'generate one: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"',
+    })
+    return
+  }
+
+  try {
+    const sealed = seal(credential.template, templateKeys.active)
+    const session = cloud?.get(credential.deviceSerial)
+
+    const id = await persistence.storeCapturedCredential({
+      serial: credential.deviceSerial,
+      externalUserId: credential.externalUserId,
+      backupNum: credential.backupNum,
+      credentialType: credentialTypeForSlot(credential.backupNum),
+      templateSealed: sealed.ciphertext,
+      templateKeyId: sealed.keyId,
+      fpAlgo: session?.devinfo?.fpalgo ?? null,
+      capturedVia: 'device',
+    })
+
+    if (id) log.info('credential stored', { ...context, credentialId: id })
+    // A null id means the enrolment number is not mapped to anyone. The capture
+    // is real, so say so loudly — guessing whose finger it was would attach
+    // biometric data to the wrong person.
+    else log.warn('captured credential for an unmapped enrolment number; not stored', {
+      ...context, hint: 'map it at /admin/devices/enrollments, then re-enrol',
+    })
+  } catch (e) {
+    log.error('failed to store a captured credential', { ...context, ...errFields(e) })
+  }
+}
+
+const cloud = config.cloudPort > 0
+  ? new CloudServer({
+      timezone: config.timezone,
+      strictSerials: config.strictSerials,
+      isKnownSerial: (serial) => knownSerials.has(serial),
+      deviceTimezone: (serial) => deviceTimezones.get(serial) ?? config.timezone,
+      onEvents: (events) => fanout.submit(events),
+      onCapturedCredential: (credential) => {
+        void storeCapturedCredential(credential)
+      },
+      onRegister: (serial, info) => {
+        void persistence?.registerDevice({
+          serial,
+          model: info?.modelname ?? null,
+          firmware: info?.firmware ?? null,
+          fpAlgo: info?.fpalgo ?? null,
+          capacity: info?.capacity ?? {},
+        })
+      },
+      onRawFrame: (serial, text, transport) => {
+        archive?.submit([
+          buildRawPayload({
+            body: Buffer.from(text, 'utf8'),
+            transport: `cloud:${transport}`,
+            deviceSerial: serial,
+            vendor: 'cloud',
+            parsedEventCount: 0,
+          }),
+        ])
+      },
+    })
+  : null
+
+// The app→device path: the app writes device_commands rows, this claims and
+// dispatches them. Only meaningful when both a cloud channel and a database
+// exist, which is why it is conditional rather than always-on.
+const commands = cloud && persistence
+  ? new CommandQueue({
+      persistence,
+      sessionFor: (serial) => cloud.get(serial),
+      onlineSerials: () => cloud.online(),
+      pollIntervalMs: Number(process.env.COMMAND_POLL_MS ?? 2_000),
+    })
+  : null
+
 fanout.start()
 archive?.start()
 gateway.listen()
+cloud?.listen(config.cloudPort)
+commands?.start()
 
 log.info('gateway started', {
   destinations: destinations.map((d) => ({
@@ -93,6 +211,11 @@ log.info('gateway started', {
   archiveRaw: Boolean(archive),
   devices: config.devices.length,
   tcpPorts: config.tcpPorts,
+  cloudPort: config.cloudPort > 0 ? config.cloudPort : 'disabled',
+  deviceManagement: commands ? 'enabled' : 'disabled',
+  // Whether we can store a credential at all. Worth stating at boot rather
+  // than discovering at the first enrolment.
+  templateSealing: templateKeys ? templateKeys.active.id : 'no key configured',
   // A backlog here means the last run ended with a destination unreachable.
   // It drains on its own; saying so up front saves debugging a phantom.
   pendingEvents: fanout.pending,
@@ -119,7 +242,9 @@ function shutdown(signal: string): void {
   })
   fanout.stop()
   archive?.stop()
+  commands?.stop()
   gateway.close()
+  cloud?.close()
   // Anything still spooled is on disk and gets picked up next boot, so exiting
   // promptly is safe and beats hanging a container restart.
   process.exit(0)

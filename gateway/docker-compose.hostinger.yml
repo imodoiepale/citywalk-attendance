@@ -13,13 +13,22 @@
 services:
   gateway:
     build:
-      context: https://github.com/imodoiepale/citywalk-attendance.git#codex/hostinger-biometric-gateway:gateway
+      context: https://github.com/imodoiepale/citywalk-attendance.git#main:gateway
     restart: unless-stopped
     environment:
       SUPABASE_URL: ${SUPABASE_URL:-https://kntejfukhzgccmqtioag.supabase.co}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set the Supabase service-role key in Hostinger}
       GATEWAY_HTTP_PORT: 8080
       GATEWAY_TCP_PORTS: ${GATEWAY_TCP_PORTS:-5005}
+      # Two-way channel: terminals in cloud/ADMS mode dial in and stay connected
+      # so commands can go back down the same socket. 0 disables it.
+      GATEWAY_CLOUD_PORT: ${GATEWAY_CLOUD_PORT:-7788}
+      COMMAND_POLL_MS: ${COMMAND_POLL_MS:-2000}
+      # Required to store any biometric credential. Templates are sealed with
+      # this before they reach Postgres, so a database dump is ciphertext.
+      # Without it the gateway refuses to store a captured credential.
+      BIOMETRIC_TEMPLATE_KEY: ${BIOMETRIC_TEMPLATE_KEY:-}
+      BIOMETRIC_TEMPLATE_KEYS_PREVIOUS: ${BIOMETRIC_TEMPLATE_KEYS_PREVIOUS:-}
       SPOOL_DIR: /var/lib/smart-sentinel/spool
       TZ: ${TZ:-Africa/Nairobi}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -60,6 +69,7 @@ services:
     ports:
       - "${NATIVE_HTTP_PORT:-8081}:8080"
       - "${FKWEB_TCP_PORT:-5005}:5005"
+      - "${CLOUD_TCP_PORT:-7788}:7788"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.citywalk-biometric.rule=Host(`${GATEWAY_HOSTNAME:-srv1631847.hstgr.cloud}`)"
