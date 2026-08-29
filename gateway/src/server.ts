@@ -8,6 +8,7 @@ import type { NormalizedEvent, VendorInput } from './types.ts'
 import type { RawPayload } from './archive.ts'
 import { buildRawPayload } from './archive.ts'
 import { getParser, vendorNames } from './vendors/index.ts'
+import { M50Session } from './vendors/m50/session.ts'
 import { log, errFields } from './log.ts'
 import { camsAuthToken, decryptCamsCallback, validCamsAuthToken } from './vendors/cams/security.ts'
 
@@ -391,11 +392,48 @@ export function createServer(deps: ServerDeps) {
 
   // ── WebSocket, on the same port ────────────────────────────────────────────
   const wss = new WebSocketServer({ server })
+
+  // Silence on this port is the hardest failure to debug this gateway has: a
+  // device that opens a connection and closes it having sent nothing leaves no
+  // trace beyond a TIME_WAIT entry, which is indistinguishable from a device
+  // that never dialled at all. Anything that goes wrong before `connection`
+  // fires now says so out loud.
+  wss.on('error', (e) => log.error('websocket server error', errFields(e)))
+  server.on('upgrade', (req, socket) => {
+    log.info('websocket upgrade requested', { url: req.url, from: (socket as net.Socket).remoteAddress })
+    socket.on('error', (e) => log.warn('websocket upgrade failed', { url: req.url, ...errFields(e) }))
+  })
+
   wss.on('connection', (ws, req) => {
     const from = req.socket.remoteAddress ?? 'unknown'
     const url = new URL(req.url ?? '/', 'http://gateway')
     const query = Object.fromEntries(url.searchParams)
     log.info('websocket connected', { from, path: url.pathname })
+
+    // The M50 family (M82 and relatives, set to a `ws://` Web Server URL) will
+    // not send a single scan until it has been through Register -> Login, and
+    // says nothing about why when that fails. The session holds that state for
+    // the life of the connection and declines any frame that is not M50, so the
+    // families that just push and hang up are unaffected.
+    const m50 = new M50Session({
+      from,
+      strictSerials: config.strictSerials,
+      knownSerial: (serial) => bySerial.has(serial),
+      send: (text) => { try { ws.send(text) } catch { /* peer already gone */ } },
+      deliver: (body, serial) => handlePayload(
+        {
+          body,
+          path: url.pathname,
+          // Naming the vendor matters when the serial is not in devices.yaml
+          // (capture mode): without a device row to hint from, the frame would
+          // otherwise be offered to whichever parsers happen to be configured.
+          query: { ...query, vendor: 'm50' },
+          deviceSerial: serial || undefined,
+        },
+        `ws ${from}`,
+        { transport: 'ws', sourceIp: from }
+      ).ack,
+    })
 
     ws.on('message', (data) => {
       const body = Buffer.isBuffer(data)
@@ -403,6 +441,10 @@ export function createServer(deps: ServerDeps) {
         : Array.isArray(data)
           ? Buffer.concat(data)
           : Buffer.from(data as ArrayBuffer)
+
+      // The session answers M50 frames itself, acknowledgement included.
+      if (m50.handle(body)) return
+
       const result = handlePayload(
         { body, path: url.pathname, query, deviceSerial: query.SN ?? query.sn ?? query.serial },
         `ws ${from}`,
@@ -415,7 +457,9 @@ export function createServer(deps: ServerDeps) {
     })
 
     ws.on('error', (e) => log.warn('websocket error', { from, ...errFields(e) }))
-    ws.on('close', (code) => log.info('websocket closed', { from, code }))
+    ws.on('close', (code) => log.info('websocket closed', {
+      from, code, serial: m50.serial, m50Stage: m50.stage,
+    }))
   })
 
   // ── Raw TCP, for LogClient-style firmware ──────────────────────────────────
