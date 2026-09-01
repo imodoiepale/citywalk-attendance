@@ -13,8 +13,15 @@ set -e
 # cert mounted here instead, not a code change.
 mkdir -p /certs
 if [ ! -f /certs/cert.pem ]; then
+  # subjectAltName is required, not optional decoration: modern TLS stacks
+  # (and plenty of embedded ones) reject a cert with no SAN entry even when
+  # they don't otherwise validate the chain, aborting right after the
+  # handshake with no application data ever sent — reproduced locally
+  # against a CN-only cert before this fix.
+  HOST="${GATEWAY_HOSTNAME:-citywalk-biometric-legacy}"
   openssl req -x509 -newkey rsa:2048 -keyout /certs/key.pem -out /certs/cert.pem \
-    -days 3650 -nodes -subj "/CN=${GATEWAY_HOSTNAME:-citywalk-biometric-legacy}"
+    -days 3650 -nodes -subj "/CN=${HOST}" \
+    -addext "subjectAltName=DNS:${HOST}${TLS_SIDECAR_EXTRA_SAN:+,${TLS_SIDECAR_EXTRA_SAN}}"
 fi
 
 exec node proxy.mjs

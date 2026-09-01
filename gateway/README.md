@@ -357,11 +357,15 @@ The simplest hPanel route after these files are committed and pushed:
    Open **`8443`** too if any terminal needs the legacy TLS sidecar (below);
    otherwise leave it closed.
 
-### M82 terminals that speak TLS 1.0
+### M50 terminals that speak TLS 1.0
 
-Some M82-generation firmware always wraps its connection in TLS, regardless of
-the URL scheme configured on the terminal's own menu — but only negotiates
-TLS 1.0 with old CBC cipher suites, below Traefik's default minimum (TLS 1.2).
+Some hardware in the M82/M50 family always wraps its WebSocket connection in
+TLS — the vendor's own WebSocket SDK spec documents the terminal's "Web
+Server URL" menu field as taking `ws://` or `wss://` explicitly, and states
+the device retries every 10 seconds until connected, which is the signature
+to look for when identifying one of these against real hardware (it matches
+exactly, down to the interval). The firmware observed only negotiates TLS
+1.0 with old CBC cipher suites, below Traefik's default minimum (TLS 1.2).
 Pointing such a terminal at the `GATEWAY_HOSTNAME` router will fail the TLS
 handshake before any request reaches the gateway at all, with nothing to see
 in the gateway's own logs — the connection never gets that far.
@@ -374,10 +378,22 @@ is a pre-existing, separately-managed instance. `legacy-tls-sidecar` in
 itself — with an internally-generated self-signed certificate, regenerated
 fresh on each container start — and handing the gateway plain HTTP, published
 on its own port (`LEGACY_TLS_PORT`, default `8443`) so it bypasses Traefik
-entirely, the same way FkWeb's raw TCP `5005` already does.
+entirely, the same way FkWeb's raw TCP `5005` already does. The generated
+certificate carries a `subjectAltName` for `GATEWAY_HOSTNAME` and
+`GATEWAY_IP` — not optional decoration: a CN-only cert with no SAN entry is
+rejected by many TLS stacks even when they don't otherwise validate the
+chain, which was reproduced locally as a handshake that completes and then
+closes immediately with no application data ever sent.
 
-Point such a terminal's Web Server URL at `<VPS IP>:8443` instead of the
-Traefik hostname. If the terminal's firmware validates the certificate chain
+**`devices.yaml`'s `vendor` field must be `m50` for this device, not `m82`
+or `fkweb`.** It's checked *before* the WebSocket session's own vendor hint
+in `handlePayload`, so a mismatch here silently routes real frames through
+the wrong parser and produces nothing — with no error, just silence.
+
+Point such a terminal's Web Server URL at `wss://<VPS IP>:8443` — the scheme
+matters here, unlike the FkWeb menu setting's bare `host:port` — instead of
+the Traefik hostname. If the terminal's firmware validates the certificate
+chain
 and rejects a self-signed one, the symptom is the TLS handshake completing —
 visible in the sidecar's own log — followed by an immediate connection close
 with no HTTP request ever sent; the fix at that point is mounting a CA-issued

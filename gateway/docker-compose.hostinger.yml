@@ -113,6 +113,10 @@ services:
       TLS_SIDECAR_BACKEND_HOST: gateway
       TLS_SIDECAR_BACKEND_PORT: "8080"
       GATEWAY_HOSTNAME: ${GATEWAY_HOSTNAME:-srv1631847.hstgr.cloud}
+      # Terminals dial the raw IP, not the hostname, so the cert needs an IP
+      # SAN entry too — a DNS-only SAN fails the same way a CN-only cert
+      # does for a client that connects by IP address.
+      TLS_SIDECAR_EXTRA_SAN: "IP:${GATEWAY_IP:-76.13.53.26}"
     ports:
       - "${LEGACY_TLS_PORT:-8443}:8443"
 

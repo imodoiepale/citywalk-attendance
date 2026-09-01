@@ -58,16 +58,21 @@ it's run.
 | `M50_TOKEN_SECRET` | Generated in step 0 |
 | `FKWEB_TCP_PORT` | `5005` |
 | `DEVICE_SERIAL` | `ENS2025079` |
-| `DEVICE_VENDOR` | `m82` |
+| `DEVICE_VENDOR` | `m50` |
 | `DEVICE_LABEL` | `HQ main entrance` |
 | `DEVICE_BRANCH` | `hq` |
 | `DEVICE_DIRECTION` | `null` |
 | `TZ` | `Africa/Nairobi` |
 | `LEGACY_TLS_PORT` | `8443` |
+| `GATEWAY_IP` | `76.13.53.26` |
 
-`DEVICE_VENDOR=m82`, not `fkweb` — confirmed against this specific terminal
-(see the "M82 terminals that speak TLS 1.0" section of the README for how
-that was established).
+`DEVICE_VENDOR=m50`, not `m82` or `fkweb` — the ~10-second reconnect cadence
+observed against this terminal matches the vendor's own WebSocket SDK spec
+exactly ("the device tries to connect to that server every 10s"), and the
+TLS wrapping matches its documented `wss://` transport. This matters beyond
+labeling: `devices.yaml`'s `vendor` field is checked *before* the WebSocket
+session's own vendor hint, so a mismatch here silently routes real M50
+frames through the wrong parser and produces nothing.
 
 ## 4. Deploy
 
@@ -91,8 +96,13 @@ inbound TCP:
 On the terminal's own menu, set the Web Server URL to:
 
 ```
-76.13.53.26:8443
+wss://76.13.53.26:8443
 ```
+
+The `wss://` scheme is not cosmetic — the vendor's own WebSocket SDK spec
+documents the field as taking `ws://` or `wss://` explicitly (`2.1
+Establishing websocket connection`), unlike the older FkWeb menu setting
+which takes a bare `host:port` with no scheme.
 
 This is the legacy TLS sidecar — the path that terminates this firmware's
 TLS 1.0 connection itself, since Traefik's default minimum is TLS 1.2 and
@@ -133,13 +143,14 @@ enrolment number is mapped to a person — one applied punch.
 - **Nothing at all, ever, in any log** — network problem, not protocol.
   Confirm both firewalls (step 5) and that the terminal's network permits
   outbound to `76.13.53.26:8443`.
-- **TLS connects, then closes immediately with no HTTP request logged** —
-  the firmware is validating the certificate chain and rejecting the
-  sidecar's self-signed one. The fix is mounting a CA-issued certificate in
-  the sidecar instead of the generated one — not a code change. This was the
-  exact failure mode reproduced locally against a hand-rolled self-signed
-  cert; a real deployment may or may not hit it depending on whether this
-  firmware validates chains at all.
+- **TLS connects, then closes immediately with no application data ever
+  sent** — reproduced locally, and traced to the generated certificate
+  having no `subjectAltName` entry (a CN-only cert), which many TLS stacks
+  reject even without validating the chain. The sidecar's entrypoint now
+  requests a SAN covering `GATEWAY_HOSTNAME` and `GATEWAY_IP` — if this
+  still happens after that fix, the firmware is validating the certificate
+  chain itself, and the next step is mounting a real CA-issued certificate
+  in the sidecar instead of the generated one (not a code change).
 - **`push produced no events`** — the connection and framing worked but the
   parser didn't recognize the payload shape. The archived raw payload in
   `device_raw_payloads` is the next thing to look at — add it as a fixture
