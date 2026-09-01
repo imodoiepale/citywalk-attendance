@@ -36,3 +36,24 @@ devices:
   #   timezone: Africa/Nairobi
   #   branch: branch-02
   #   direction: out
+
+  # Example of an M50-family terminal (M82 and relatives) — the ones configured
+  # by setting a "Web Server URL" under Communication rather than a server IP
+  # and port. They arrive on the WebSocket listener, not on a raw TCP port, so
+  # there is no `port:` here.
+  #
+  # vendor: m50 is required, not optional. These terminals will not send a scan
+  # until they have completed a Register/Login handshake, and only the m50
+  # module speaks it — with any other vendor the device connects, gets an answer
+  # it cannot parse, and hangs up without a word.
+  #
+  # The serial must match the terminal exactly. If you do not know it, leave
+  # this commented out and start the gateway: the device's first connection logs
+  # "refused M50 registration for unknown serial" with the serial to paste in.
+  # - serial: M82-0001
+  #   label: HQ reception
+  #   vendor: m50
+  #   mode: listen
+  #   timezone: Africa/Nairobi
+  #   branch: hq
+  #   direction: null

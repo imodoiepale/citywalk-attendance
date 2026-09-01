@@ -6,6 +6,7 @@ import path from 'node:path'
 import http from 'node:http'
 import { createCipheriv, createHmac, timingSafeEqual } from 'node:crypto'
 import { once } from 'node:events'
+import WebSocket from 'ws'
 import { Spool } from '../src/spool.ts'
 import { Forwarder, createForwarder } from '../src/forward.ts'
 import { createServer } from '../src/server.ts'
@@ -548,6 +549,85 @@ test('Cams AES-256-ECB callbacks decrypt before token validation and parsing', a
     await h.settled()
     assert.equal(h.sunk.length, 1)
   } finally {
+    await h.close()
+  }
+})
+
+// ── M50 WebSocket, end to end ────────────────────────────────────────────────
+//
+// The failure this covers is not a parsing failure. In the field the terminal
+// completed its TLS and WebSocket handshakes, sent Register, got an answer it
+// could not read, and hung up — producing a connection that opened and closed
+// having delivered nothing. So this drives a real socket through the real
+// upgrade path rather than calling the session directly.
+
+/** Read one frame, failing loudly instead of hanging the suite forever. */
+async function nextFrame(ws: WebSocket): Promise<string> {
+  const [data] = await Promise.race([
+    once(ws, 'message') as Promise<[Buffer | string]>,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('device waited for a reply that never came')), 4000)),
+  ])
+  return typeof data === 'string' ? data : data.toString('utf8')
+}
+
+const m50Tag = (xml: string, name: string) =>
+  new RegExp(`<${name}>([^<]*)</${name}>`).exec(xml)?.[1] ?? null
+
+test('an M50 terminal registers, logs in and delivers a scan over a real WebSocket', async () => {
+  process.env.M50_TOKEN_SECRET ??= 'test-secret'
+  const h = await listenGateway(config({
+    devices: [{
+      serial: 'M82-0001', vendor: 'm50', mode: 'listen',
+      timezone: 'Africa/Nairobi', direction: null, pollIntervalMs: 30_000,
+    }],
+  }))
+  const ws = new WebSocket(h.url.replace('http://', 'ws://'))
+
+  try {
+    await once(ws, 'open')
+
+    ws.send('<?xml version="1.0"?><Message><Request>Register</Request>' +
+      '<TerminalType>M82</TerminalType><DeviceSerialNo>M82-0001</DeviceSerialNo></Message>')
+    const registered = await nextFrame(ws)
+    assert.equal(m50Tag(registered, 'Result'), 'OK')
+    const token = m50Tag(registered, 'Token')
+    assert.ok(token, 'no token means the device can never log in')
+
+    ws.send(`<Message><Request>Login</Request><DeviceSerialNo>M82-0001</DeviceSerialNo><Token>${token}</Token></Message>`)
+    assert.equal(m50Tag(await nextFrame(ws), 'Result'), 'OK')
+
+    ws.send('<Message><DeviceSerialNo>M82-0001</DeviceSerialNo><Event>TimeLog_v2</Event>' +
+      '<LogID>24</LogID><UtcTimezoneMinutes>180</UtcTimezoneMinutes>' +
+      '<Time>2026-08-29-T08:15:30Z</Time><UserID>42</UserID><Action>FP</Action>' +
+      '<AttendStat>Duty On</AttendStat><TransID>tx-7</TransID></Message>')
+    const ack = await nextFrame(ws)
+    assert.equal(m50Tag(ack, 'Response'), 'TimeLog_v2')
+    assert.equal(m50Tag(ack, 'Result'), 'OK')
+    assert.equal(m50Tag(ack, 'TransID'), 'tx-7')
+
+    await h.settled()
+    assert.equal(h.sunk.length, 1)
+    assert.equal(h.sunk[0]?.externalUserId, '42')
+    assert.equal(h.sunk[0]?.scannedAt, '2026-08-29T05:15:30.000Z')
+    assert.equal(h.sunk[0]?.direction, 'in')
+  } finally {
+    ws.close()
+    await h.close()
+  }
+})
+
+test('an M50 terminal whose serial is not in devices.yaml is refused, not silently accepted', async () => {
+  const h = await listenGateway(config())
+  const ws = new WebSocket(h.url.replace('http://', 'ws://'))
+
+  try {
+    await once(ws, 'open')
+    ws.send('<Message><Request>Register</Request><DeviceSerialNo>NOT-LISTED</DeviceSerialNo></Message>')
+    const reply = await nextFrame(ws)
+    assert.equal(m50Tag(reply, 'Result'), 'Fail')
+    assert.equal(m50Tag(reply, 'Token'), null)
+  } finally {
+    ws.close()
     await h.close()
   }
 })
