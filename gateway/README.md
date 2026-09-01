@@ -303,6 +303,10 @@ script into a root shell to save one step is not a trade worth making.
 
 ## Deploy as a Hostinger Docker application
 
+See [`deploy/HOSTINGER_SETUP.md`](deploy/HOSTINGER_SETUP.md) for the
+condensed, in-order checklist for standing this up on the existing VPS from
+scratch. What follows here is the full reference.
+
 The simplest hPanel route after these files are committed and pushed:
 
 1. Open **VPS → Manage → Docker Manager → Compose → Compose from URL**.
