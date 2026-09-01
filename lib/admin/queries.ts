@@ -94,6 +94,76 @@ export async function listBranches(): Promise<BranchRow[]> {
   }))
 }
 
+export interface ShiftTemplateRow {
+  id: string
+  name: string
+  branchId: string | null
+  branchName: string | null
+  role: Role | null
+  clockInWindowStart: string
+  clockInWindowEnd: string
+  clockOutWindowStart: string
+  clockOutWindowEnd: string
+  graceMinutes: number
+  isActive: boolean
+}
+
+export async function listShiftTemplates(): Promise<ShiftTemplateRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('shift_templates')
+    .select(
+      'id, name, branch_id, role, clock_in_window_start, clock_in_window_end, clock_out_window_start, clock_out_window_end, grace_minutes, is_active, branch:branches(name)'
+    )
+    .order('name')
+
+  type BranchEmbed = { name: string } | { name: string }[] | null
+  const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    branchId: row.branch_id,
+    branchName: one(row.branch as BranchEmbed)?.name ?? null,
+    role: row.role as Role | null,
+    clockInWindowStart: row.clock_in_window_start,
+    clockInWindowEnd: row.clock_in_window_end,
+    clockOutWindowStart: row.clock_out_window_start,
+    clockOutWindowEnd: row.clock_out_window_end,
+    graceMinutes: row.grace_minutes,
+    isActive: row.is_active,
+  }))
+}
+
+export interface ShiftAssignmentRow {
+  id: string
+  shiftTemplateId: string
+  shiftTemplateName: string
+  effectiveFrom: string
+  effectiveTo: string | null
+}
+
+/** A person's shift history, current assignment first. */
+export async function listShiftAssignments(profileId: string): Promise<ShiftAssignmentRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('shift_assignments')
+    .select('id, shift_template_id, effective_from, effective_to, template:shift_templates(name)')
+    .eq('profile_id', profileId)
+    .order('effective_from', { ascending: false })
+
+  type TemplateEmbed = { name: string } | { name: string }[] | null
+  const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    shiftTemplateId: row.shift_template_id,
+    shiftTemplateName: one(row.template as TemplateEmbed)?.name ?? 'Unknown',
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to,
+  }))
+}
+
 export interface AdminUserDetail extends AdminUserRow {
   jobTitle: string | null
   createdAt: string

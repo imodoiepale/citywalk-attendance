@@ -7,6 +7,7 @@ import {
   APPROACHING_THRESHOLD_HOURS,
   GRACE_PERIOD_MINUTES,
   MAX_SHIFT_HOURS,
+  DUPLICATE_WINDOW_SECONDS,
 } from '@/lib/targets'
 
 export interface AppSettings {
@@ -15,6 +16,7 @@ export interface AppSettings {
   approachingThresholdHours: number
   gracePeriodMinutes: number
   maxShiftHours: number
+  duplicateWindowSeconds: number
   faceEnabled: boolean
   faceMinConfidence: number
   faceRetentionDays: number
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   approachingThresholdHours: APPROACHING_THRESHOLD_HOURS,
   gracePeriodMinutes: GRACE_PERIOD_MINUTES,
   maxShiftHours: MAX_SHIFT_HOURS,
+  duplicateWindowSeconds: DUPLICATE_WINDOW_SECONDS,
   // Face recognition is off until an administrator turns it on and the cameras
   // are configured — the safe default for a feature that handles biometric data.
   faceEnabled: false,
@@ -50,7 +53,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
   const { data } = await supabase
     .from('app_settings')
     .select(
-      'daily_target_hours, weekly_target_hours, approaching_threshold_hours, grace_period_minutes, max_shift_hours, face_enabled, face_min_confidence, face_retention_days, face_reenroll_days, face_consent_version'
+      'daily_target_hours, weekly_target_hours, approaching_threshold_hours, grace_period_minutes, max_shift_hours, duplicate_window_seconds, face_enabled, face_min_confidence, face_retention_days, face_reenroll_days, face_consent_version'
     )
     .maybeSingle()
 
@@ -62,6 +65,7 @@ export const getSettings = cache(async (): Promise<AppSettings> => {
     approachingThresholdHours: Number(data.approaching_threshold_hours),
     gracePeriodMinutes: Number(data.grace_period_minutes),
     maxShiftHours: Number(data.max_shift_hours),
+    duplicateWindowSeconds: Number(data.duplicate_window_seconds ?? DUPLICATE_WINDOW_SECONDS),
     faceEnabled: Boolean(data.face_enabled),
     faceMinConfidence: Number(data.face_min_confidence ?? 0.9),
     faceRetentionDays: Number(data.face_retention_days ?? 365),

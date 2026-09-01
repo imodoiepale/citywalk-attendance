@@ -116,6 +116,8 @@ export default async function BiometricPanel({
                     )}
                   </div>
 
+                  <p className="mt-2 text-xs text-muted-foreground">{credential.fleetRolloutSummary}</p>
+
                   {credential.devices.some((d) => d.lastError) ? (
                     <p className="mt-1.5 text-xs text-destructive">
                       {credential.devices.find((d) => d.lastError)?.lastError}

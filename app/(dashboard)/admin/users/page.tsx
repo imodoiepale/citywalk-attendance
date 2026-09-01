@@ -13,6 +13,7 @@ export default async function AdminUsersPage() {
   const canSettings = canAtLeast(user.permissions, user.role, 'admin.settings', 'full')
   const canDevices = canAtLeast(user.permissions, user.role, 'admin.devices', 'full')
   const canPermissions = canAtLeast(user.permissions, user.role, 'admin.permissions', 'full')
+  const canEmployees = canAtLeast(user.permissions, user.role, 'admin.employees', 'full')
 
   return (
     <div className="space-y-4">
@@ -60,16 +61,20 @@ export default async function AdminUsersPage() {
               Settings
             </Link>
           ) : null}
+          {canEmployees ? (
+            <Link href="/admin/users/new" className={buttonVariants({ size: 'sm' })}>
+              New employee
+            </Link>
+          ) : null}
         </div>
       </div>
 
       <AdminUserTable users={users} currentUserId={user.id} />
 
       <p className="text-xs text-muted-foreground">
-        New accounts are created by staff signing up and choosing their branch. Deactivating an
-        account revokes access immediately without deleting its punch history. Your own row is
-        read-only, and the last active admin cannot be deactivated or demoted — otherwise nobody
-        would be left who could undo it.
+        Deactivating an account revokes access immediately without deleting its punch history. Your
+        own row is read-only, and the last active admin cannot be deactivated or demoted —
+        otherwise nobody would be left who could undo it.
       </p>
     </div>
   )

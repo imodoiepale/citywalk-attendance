@@ -9,6 +9,7 @@ import {
 } from '@/lib/leave/queries'
 import DashboardClient from '@/components/DashboardClient'
 import LeaveDecisionAnnouncer from '@/components/leave/LeaveDecisionAnnouncer'
+import OvertimeWidget from '@/components/dashboard/OvertimeWidget'
 import { hoursToSeconds } from '@/lib/targets'
 import { getSettings } from '@/lib/settings'
 
@@ -30,6 +31,8 @@ export default async function DashboardPage({
 
   const canApproveOrg = canAtLeast(user.permissions, user.role, 'leave.approve.org', 'org')
   const canApproveBranch = canAtLeast(user.permissions, user.role, 'leave.approve.branch', 'branch')
+  const canViewReportsOrg = canAtLeast(user.permissions, user.role, 'report.view.org', 'org')
+  const canViewReportsBranch = canAtLeast(user.permissions, user.role, 'report.view.branch', 'branch')
 
   const [settings, punches, weekHours, pendingLeaveCount, awaitingApprovalCount, unseenDecisions] =
     await Promise.all([
@@ -61,6 +64,10 @@ export default async function DashboardPage({
         </h1>
         <p className="text-xs text-muted-foreground sm:text-sm">{user.branchName}</p>
       </div>
+
+      {canViewReportsOrg || canViewReportsBranch ? (
+        <OvertimeWidget branchId={user.branchId} orgWide={canViewReportsOrg} />
+      ) : null}
 
       <DashboardClient
         punches={punches}

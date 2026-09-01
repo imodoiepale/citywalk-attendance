@@ -167,6 +167,10 @@ export async function startFingerprintEnrolAction(
 
   const supabase = await createClient()
 
+  const { data: profile } = profileId
+    ? await supabase.from('profiles').select('full_name').eq('id', profileId).maybeSingle()
+    : { data: null }
+
   // Without the mapping the captured template arrives with nobody to attach it
   // to, and the gateway correctly refuses to guess. Catch it here, where it can
   // still be fixed, rather than after someone has queued at a reader.
@@ -181,6 +185,18 @@ export async function startFingerprintEnrolAction(
   }
   if (profileId && mapping.profile_id !== profileId) {
     return { error: `Enrollment number ${enrollId} already belongs to someone else.` }
+  }
+
+  const name = String(profile?.full_name ?? '').trim()
+  if (name) {
+    const { error: nameError } = await supabase.rpc('queue_device_command', {
+      p_serial: serial,
+      p_command: 'setusername',
+      p_payload: { enrollid: enrollId, name },
+      p_reason: 'set enrollment name before fingerprint capture',
+      p_ttl_seconds: 600,
+    })
+    if (nameError) return { error: nameError.message }
   }
 
   const { data, error } = await supabase.rpc('queue_device_command', {

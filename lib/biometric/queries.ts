@@ -138,6 +138,56 @@ export async function listUnmatchedScans(): Promise<UnmatchedScan[]> {
   return [...grouped.values()].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen))
 }
 
+export interface DuplicateScanRow {
+  id: string
+  matchKind: 'exact_key' | 'window'
+  deviceName: string | null
+  deviceSerial: string
+  personName: string | null
+  externalUserId: string
+  scannedAt: string
+  gapSeconds: number
+  receivedAt: string
+  /** Only set for match_kind='window' — the row that never became a punch. */
+  duplicateEventId: string | null
+}
+
+/**
+ * Recent duplicate scans, of either kind, newest first.
+ *
+ * `exact_key` rows are the ONLY record that a dedupe_key collision ever
+ * happened — the biometric_events row itself was refused by the unique
+ * constraint. `window` rows point at a real (never-punched) biometric_events
+ * row via duplicateEventId, which is what a delete action needs.
+ */
+export async function listRecentDuplicates(limit = 200): Promise<DuplicateScanRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('biometric_event_duplicates')
+    .select(
+      'id, match_kind, device_serial, external_user_id, scanned_at, gap_seconds, received_at, duplicate_event_id, device:biometric_devices(name), profile:profiles(full_name)'
+    )
+    .order('received_at', { ascending: false })
+    .limit(limit)
+
+  type DeviceEmbed = { name: string } | { name: string }[] | null
+  type ProfileEmbed = { full_name: string } | { full_name: string }[] | null
+  const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v)
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    matchKind: row.match_kind as 'exact_key' | 'window',
+    deviceName: one(row.device as DeviceEmbed)?.name ?? null,
+    deviceSerial: row.device_serial,
+    personName: one(row.profile as ProfileEmbed)?.full_name ?? null,
+    externalUserId: row.external_user_id,
+    scannedAt: row.scanned_at,
+    gapSeconds: Number(row.gap_seconds),
+    receivedAt: row.received_at,
+    duplicateEventId: row.duplicate_event_id,
+  }))
+}
+
 export interface EstateSummary {
   total: number
   online: number
@@ -272,6 +322,7 @@ export interface CredentialRow {
   revokedAt: string | null
   /** Per-device replication state. Empty means it has reached no reader yet. */
   devices: { deviceId: string; deviceName: string | null; state: string; lastError: string | null }[]
+  fleetRolloutSummary: string
 }
 
 /**
@@ -312,6 +363,18 @@ export async function listCredentials(profileId: string): Promise<CredentialRow[
     byCredential.set(row.credential_id, list)
   }
 
+  const summariseFleet = (devices: CredentialRow['devices']) => {
+    const synced = devices.filter((d) => d.state === 'synced').length
+    const pending = devices.filter((d) => d.state === 'pending').length
+    const failed = devices.filter((d) => d.state === 'failed').length
+    const unsupported = devices.filter((d) => d.state === 'unsupported').length
+    const parts = [`${synced}/${devices.length} synced`]
+    if (pending) parts.push(`${pending} pending`)
+    if (failed) parts.push(`${failed} failed`)
+    if (unsupported) parts.push(`${unsupported} unsupported`)
+    return parts.join(', ')
+  }
+
   return credentials.map((c) => ({
     id: c.id,
     credentialType: c.credential_type,
@@ -321,6 +384,7 @@ export async function listCredentials(profileId: string): Promise<CredentialRow[
     capturedAt: c.captured_at,
     revokedAt: c.revoked_at,
     devices: byCredential.get(c.id) ?? [],
+    fleetRolloutSummary: summariseFleet(byCredential.get(c.id) ?? []),
   }))
 }
 

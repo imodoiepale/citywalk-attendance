@@ -10,6 +10,8 @@ export const WEEKLY_TARGET_HOURS = 40
 export const APPROACHING_THRESHOLD_HOURS = 7
 export const GRACE_PERIOD_MINUTES = 10
 export const MAX_SHIFT_HOURS = 16
+/** Same device+person scans closer together than this count as one duplicate. */
+export const DUPLICATE_WINDOW_SECONDS = 60
 
 export const DAILY_TARGET_SECONDS = DAILY_TARGET_HOURS * 60 * 60
 /** Point at which the dial warns the day is nearly done. */

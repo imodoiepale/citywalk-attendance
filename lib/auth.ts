@@ -10,6 +10,8 @@ export interface CurrentUser {
   role: Role
   jobTitle: string | null
   isActive: boolean
+  /** Set on admin-created accounts. requireUser() forces /set-password until this clears. */
+  mustChangePassword: boolean
   branchId: string
   branchName: string
   branchCode: string
@@ -30,6 +32,7 @@ interface UserContextRow {
   role: string
   job_title: string | null
   is_active: boolean
+  must_change_password: boolean
   branch_id: string | null
   branch_name: string | null
   branch_code: string | null
@@ -77,6 +80,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     role,
     jobTitle: context.job_title,
     isActive: context.is_active,
+    mustChangePassword: Boolean(context.must_change_password),
     branchId: context.branch_id ?? '',
     branchName: context.branch_name ?? '',
     branchCode: context.branch_code ?? '',
@@ -88,6 +92,10 @@ export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (!user.isActive) redirect('/login?error=deactivated')
+  // Admin-created accounts start with a generated temp password and must
+  // change it before reaching anything else. /set-password itself calls
+  // getCurrentUser() directly, never requireUser(), so this cannot loop.
+  if (user.mustChangePassword) redirect('/set-password')
   return user
 }
 

@@ -21,6 +21,10 @@ export type Permission =
   | 'admin.branches'
   | 'admin.settings'
   | 'admin.devices'
+  | 'admin.shifts'
+  | 'attendance.delete.branch'
+  | 'attendance.delete.org'
+  | 'admin.employees'
 
 export type AccessLevel = 'none' | 'own' | 'branch' | 'org' | 'full'
 
@@ -63,6 +67,10 @@ export const PERMISSIONS: Permission[] = [
   'admin.branches',
   'admin.settings',
   'admin.devices',
+  'admin.shifts',
+  'attendance.delete.branch',
+  'attendance.delete.org',
+  'admin.employees',
 ]
 
 export const PERMISSION_META: Record<Permission, { label: string; group: string }> = {
@@ -81,6 +89,10 @@ export const PERMISSION_META: Record<Permission, { label: string; group: string 
   'admin.branches': { label: 'Manage branches', group: 'Admin' },
   'admin.settings': { label: 'Edit org settings', group: 'Admin' },
   'admin.devices': { label: 'Manage biometric devices', group: 'Admin' },
+  'admin.shifts': { label: 'Manage shift windows', group: 'Admin' },
+  'attendance.delete.branch': { label: 'Delete punches — own branch', group: 'Attendance' },
+  'attendance.delete.org': { label: 'Delete punches — any branch', group: 'Attendance' },
+  'admin.employees': { label: 'Onboard new employees', group: 'Admin' },
 }
 
 function rank(level: AccessLevel): number {
@@ -129,6 +141,14 @@ export const NAV: NavItem[] = [
     match: (p, r) =>
       canAtLeast(p, r, 'attendance.correct.branch', 'branch') ||
       canAtLeast(p, r, 'attendance.correct.org', 'org'),
+  },
+  {
+    href: '/attendance/punches',
+    label: 'Punches',
+    priority: 5,
+    match: (p, r) =>
+      canAtLeast(p, r, 'attendance.delete.branch', 'branch') ||
+      canAtLeast(p, r, 'attendance.delete.org', 'org'),
   },
   {
     href: '/reports/timesheets',

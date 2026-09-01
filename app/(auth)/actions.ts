@@ -87,6 +87,11 @@ export async function setPasswordAction(formData: FormData) {
     redirect(`/set-password?error=${encodeURIComponent(error.message)}`)
   }
 
+  // Admin-created accounts start with must_change_password=true; this is the
+  // one place that clears it, whether the session came from a recovery link
+  // or a normal sign-in with the generated temp password.
+  await supabase.rpc('clear_must_change_password')
+
   redirect('/?notice=password-set')
 }
 

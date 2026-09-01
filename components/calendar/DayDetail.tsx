@@ -39,6 +39,22 @@ function hoursBetween(startIso: string, endIso: string | null) {
   return Math.max(0, (end - new Date(startIso).getTime()) / 3_600_000)
 }
 
+const FLAG_VARIANT: Record<string, 'warning' | 'destructive'> = {
+  early: 'warning',
+  late: 'warning',
+  out_of_window: 'destructive',
+}
+
+/** Nothing rendered for on_time or no shift configured — only worth flagging. */
+function ShiftFlagBadge({ label, flag }: { label: string; flag?: string | null }) {
+  if (!flag || flag === 'on_time') return null
+  return (
+    <Badge variant={FLAG_VARIANT[flag] ?? 'secondary'}>
+      {label} {flag.replace('_', ' ')}
+    </Badge>
+  )
+}
+
 export default async function DayDetail({ date }: { date: string }) {
   const user = await requireUser()
   const [settings, punches, leave, myCorrections] = await Promise.all([
@@ -87,8 +103,16 @@ export default async function DayDetail({ date }: { date: string }) {
                       </span>
                       <span className="tabular-nums text-muted-foreground">
                         {hoursBetween(punch.clockInAt, punch.clockOutAt).toFixed(1)}h
+                        {punch.overtimeMinutes ? ` · ${punch.overtimeMinutes}m overtime` : ''}
                       </span>
                     </div>
+
+                    {punch.clockInFlag !== 'on_time' || punch.clockOutFlag !== 'on_time' ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        <ShiftFlagBadge label="in" flag={punch.clockInFlag} />
+                        <ShiftFlagBadge label="out" flag={punch.clockOutFlag} />
+                      </div>
+                    ) : null}
 
                     {pending ? (
                       <div className="flex items-center gap-2 text-xs">

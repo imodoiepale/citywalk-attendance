@@ -50,6 +50,13 @@ export const ADMIN_NAV: AdminNavItem[] = [
     minLevel: 'full',
   },
   {
+    href: '/admin/shifts',
+    label: 'Shifts',
+    description: 'Clock-in/out windows per branch and role',
+    permission: 'admin.shifts',
+    minLevel: 'full',
+  },
+  {
     href: '/admin/audit',
     label: 'Audit log',
     description: 'Who changed what',

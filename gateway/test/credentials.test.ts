@@ -120,6 +120,8 @@ function fakePersistence(queued: DeviceCommandRow[]) {
     async completeCommand(id, ok, result, error) {
       completed.push({ id, ok, result, error })
     },
+    async claimPendingCredentials() { return [] },
+    async updateCredentialState() {},
   }
   return { persistence, completed, claims }
 }

@@ -6,6 +6,7 @@ import { Fanout } from './fanout.ts'
 import { buildDestinations, rawDelivery } from './destinations/index.ts'
 import { CloudServer } from './cloud/session.ts'
 import { CommandQueue } from './cloud/queue.ts'
+import { CredentialReplicator } from './cloud/replication.ts'
 import { createPersistence } from './cloud/persistence.ts'
 import { loadTemplateKeys, seal } from './cloud/crypto.ts'
 import { credentialTypeForSlot, type CapturedCredential } from './cloud/inbound.ts'
@@ -112,6 +113,7 @@ const persistence = config.supabaseUrl && config.supabaseKey
 // ciphertext. No key means no credential storage at all — refusing is correct,
 // because the alternative is writing biometric data in the clear.
 const templateKeys = loadTemplateKeys()
+let replicator: CredentialReplicator | null = null
 
 async function storeCapturedCredential(credential: CapturedCredential): Promise<void> {
   // Never log the template itself; it is biometric data and this is a log file.
@@ -179,6 +181,7 @@ const cloud = config.cloudPort > 0
           fpAlgo: info?.fpalgo ?? null,
           capacity: info?.capacity ?? {},
         })
+        void replicator?.flushDevice(serial)
       },
       onRawFrame: (serial, text, transport) => {
         archive?.submit([
@@ -206,11 +209,22 @@ const commands = cloud && persistence
     })
   : null
 
+if (cloud && persistence && templateKeys) {
+  replicator = new CredentialReplicator({
+    persistence,
+    templateKeys: templateKeys.all,
+    sessionFor: (serial) => cloud.get(serial),
+    onlineSerials: () => cloud.online(),
+    pollIntervalMs: Number(process.env.CREDENTIAL_REPLICATION_POLL_MS ?? 5_000),
+  })
+}
+
 fanout.start()
 archive?.start()
 gateway.listen()
 cloud?.listen(config.cloudPort)
 commands?.start()
+replicator?.start()
 
 log.info('gateway started', {
   destinations: destinations.map((d) => ({
@@ -260,6 +274,7 @@ function shutdown(signal: string): void {
   fanout.stop()
   archive?.stop()
   commands?.stop()
+  replicator?.stop()
   gateway.close()
   cloud?.close()
   // Anything still spooled is on disk and gets picked up next boot, so exiting

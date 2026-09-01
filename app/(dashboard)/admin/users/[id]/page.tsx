@@ -2,9 +2,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { requirePermission } from '@/lib/auth'
-import { getUserDetail, listBranches } from '@/lib/admin/queries'
+import { getUserDetail, listBranches, listShiftTemplates, listShiftAssignments } from '@/lib/admin/queries'
 import { updateProfileAction } from '@/lib/admin/actions'
-import { ROLE_META } from '@/lib/rbac-catalog'
+import { canAtLeast, ROLE_META } from '@/lib/rbac-catalog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,13 +12,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import BiometricPanel from '@/components/devices/BiometricPanel'
+import AssignShiftForm from '@/components/admin/AssignShiftForm'
 
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission('admin.users', 'full')
+  const viewer = await requirePermission('admin.users', 'full')
   const { id } = await params
 
-  const [user, branches] = await Promise.all([getUserDetail(id), listBranches()])
+  const canManageShifts = canAtLeast(viewer.permissions, viewer.role, 'admin.shifts', 'full')
+  const [user, branches, shiftTemplates, shiftAssignments] = await Promise.all([
+    getUserDetail(id),
+    listBranches(),
+    canManageShifts ? listShiftTemplates() : Promise.resolve([]),
+    canManageShifts ? listShiftAssignments(id) : Promise.resolve([]),
+  ])
   if (!user) notFound()
+  const currentAssignment = shiftAssignments.find((a) => !a.effectiveTo)
 
   return (
     <div className="space-y-4">
@@ -90,6 +98,26 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           </form>
         </CardContent>
       </Card>
+
+      {canManageShifts ? (
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Shift</h2>
+              <p className="text-xs text-muted-foreground">
+                {currentAssignment
+                  ? `Currently assigned: ${currentAssignment.shiftTemplateName} (since ${currentAssignment.effectiveFrom})`
+                  : "No explicit assignment — falls back to their branch/role's default shift, if any."}
+              </p>
+            </div>
+            <AssignShiftForm
+              profileId={user.id}
+              templates={shiftTemplates}
+              currentTemplateId={currentAssignment?.shiftTemplateId}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <BiometricPanel profileId={user.id} consentVersion="2026-08-v1" />
 

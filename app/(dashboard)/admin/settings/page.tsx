@@ -39,6 +39,12 @@ const FIELDS = [
     hint: 'Shifts longer than this are flagged as likely forgotten clock-outs.',
     step: '0.5',
   },
+  {
+    name: 'duplicateWindowSeconds',
+    label: 'Duplicate scan window (seconds)',
+    hint: 'Same device+person scans closer together than this are flagged as a duplicate, not a second punch.',
+    step: '5',
+  },
 ] as const
 
 export default async function AdminSettingsPage() {
@@ -51,6 +57,7 @@ export default async function AdminSettingsPage() {
     approachingThresholdHours: settings.approachingThresholdHours,
     gracePeriodMinutes: settings.gracePeriodMinutes,
     maxShiftHours: settings.maxShiftHours,
+    duplicateWindowSeconds: settings.duplicateWindowSeconds,
   }
 
   return (

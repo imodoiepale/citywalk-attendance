@@ -82,6 +82,12 @@ export default async function DevicesPage() {
           >
             Unmatched scans
           </Link>
+          <Link
+            href="/admin/devices/duplicates"
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            Duplicates
+          </Link>
           <DeviceSheet branches={branchOptions} />
         </div>
       </div>

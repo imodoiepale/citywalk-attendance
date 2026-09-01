@@ -1,7 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { toNairobiDateKey } from '@/lib/timezone'
-import { getSettings } from '@/lib/settings'
 
 // One shared timesheet shape, rendered identically by the on-screen table and
 // by all three export formats. Anything that changes the numbers changes them
@@ -83,14 +82,6 @@ export async function loadTimesheet(options: {
 }): Promise<Timesheet> {
   const supabase = await createClient()
 
-  // The daily target has to come from app_settings, not the compiled-in
-  // constant. Reading the constant meant changing the target at /admin/settings
-  // moved the dial and the calendar but left this overtime column on the old
-  // value — a payroll number silently disagreeing with the setting that is
-  // supposed to govern it.
-  const settings = await getSettings()
-  const dailyTargetHours = settings.dailyTargetHours
-
   // Profiles first, so someone who worked zero hours in the period still
   // appears as a row of blanks rather than silently vanishing from payroll.
   let profileQuery = supabase
@@ -101,7 +92,7 @@ export async function loadTimesheet(options: {
 
   let punchQuery = supabase
     .from('punches')
-    .select('user_id, clock_in_at, clock_out_at')
+    .select('user_id, clock_in_at, clock_out_at, overtime_minutes')
     .gte('clock_in_at', options.from)
     .lt('clock_in_at', options.to)
     .limit(10000)
@@ -115,6 +106,11 @@ export async function loadTimesheet(options: {
   const profiles = (profileData ?? []) as unknown as ProfileRow[]
 
   const hoursByUserDay = new Map<string, Map<string, number>>()
+  // Overtime is now sourced from the shift-aware trigger (punches.overtime_minutes,
+  // see 20260901000003_shift_windows.sql) rather than a daily-target comparison —
+  // a shift's own clock-out window decides overtime, not one global target hour
+  // count, and a still-open punch correctly contributes none yet.
+  const overtimeMinutesByUserDay = new Map<string, Map<string, number>>()
   for (const punch of punchData ?? []) {
     const dayKey = toNairobiDateKey(punch.clock_in_at)
     const endMs = punch.clock_out_at ? new Date(punch.clock_out_at).getTime() : Date.now()
@@ -126,6 +122,15 @@ export async function loadTimesheet(options: {
       hoursByUserDay.set(punch.user_id, userDays)
     }
     userDays.set(dayKey, (userDays.get(dayKey) ?? 0) + hours)
+
+    if (punch.overtime_minutes) {
+      let overtimeDays = overtimeMinutesByUserDay.get(punch.user_id)
+      if (!overtimeDays) {
+        overtimeDays = new Map()
+        overtimeMinutesByUserDay.set(punch.user_id, overtimeDays)
+      }
+      overtimeDays.set(dayKey, (overtimeDays.get(dayKey) ?? 0) + punch.overtime_minutes)
+    }
   }
 
   const dateKeys = dateKeysBetween(options.from, options.to)
@@ -133,10 +138,11 @@ export async function loadTimesheet(options: {
   const rows: TimesheetRow[] = profiles.map((profile) => {
     const branch = oneBranch(profile.branch)
     const userDays = hoursByUserDay.get(profile.id) ?? new Map<string, number>()
+    const overtimeDays = overtimeMinutesByUserDay.get(profile.id) ?? new Map<string, number>()
 
     const days: Record<string, number> = {}
     let totalHours = 0
-    let overtimeHours = 0
+    let overtimeMinutes = 0
     let daysWorked = 0
 
     for (const key of dateKeys) {
@@ -144,9 +150,7 @@ export async function loadTimesheet(options: {
       days[key] = hours
       totalHours += hours
       if (hours > 0) daysWorked += 1
-      // Overtime is per-day: nine hours on Monday is an hour of overtime even
-      // if the week ends under target.
-      if (hours > dailyTargetHours) overtimeHours += hours - dailyTargetHours
+      overtimeMinutes += overtimeDays.get(key) ?? 0
     }
 
     return {
@@ -158,7 +162,7 @@ export async function loadTimesheet(options: {
       jobTitle: profile.job_title,
       days,
       totalHours,
-      overtimeHours,
+      overtimeHours: overtimeMinutes / 60,
       daysWorked,
     }
   })

@@ -27,6 +27,15 @@ export interface StoreCapturedCredential {
   capturedVia: 'device' | 'photo' | 'imported'
 }
 
+export interface PendingCredentialRow {
+  credential_id: string
+  external_user_id: string
+  full_name: string | null
+  backup_num: number
+  template_sealed: string
+  template_key_id: string
+}
+
 export interface Persistence {
   registerDevice(input: {
     serial: string
@@ -48,6 +57,8 @@ export interface Persistence {
   claimCommands(onlineSerials: string[], limit: number): Promise<DeviceCommandRow[]>
 
   completeCommand(id: string, ok: boolean, result: unknown, error: string | null): Promise<void>
+  claimPendingCredentials(serial: string, limit: number): Promise<PendingCredentialRow[]>
+  updateCredentialState(serial: string, credentialId: string, ok: boolean, error: string | null): Promise<void>
 }
 
 export interface SupabaseOptions {
@@ -145,6 +156,23 @@ export function createPersistence(opts: SupabaseOptions): Persistence {
         p_id: id,
         p_ok: ok,
         p_result: result ?? null,
+        p_error: error,
+      })
+    },
+
+    async claimPendingCredentials(serial, limit) {
+      const rows = await rpc<PendingCredentialRow[]>('gateway_claim_pending_credentials', {
+        p_serial: serial,
+        p_limit: limit,
+      })
+      return Array.isArray(rows) ? rows : []
+    },
+
+    async updateCredentialState(serial, credentialId, ok, error) {
+      await rpc('gateway_update_credential_state', {
+        p_serial: serial,
+        p_credential_id: credentialId,
+        p_ok: ok,
         p_error: error,
       })
     },

@@ -11,14 +11,27 @@ export interface PunchRecord {
   id: string
   clockInAt: string
   clockOutAt: string | null
+  clockInFlag?: 'on_time' | 'early' | 'late' | 'out_of_window' | null
+  clockOutFlag?: 'on_time' | 'early' | 'late' | 'out_of_window' | null
+  overtimeMinutes?: number
 }
 
 function toPunchRecord(row: {
   id: string
   clock_in_at: string
   clock_out_at: string | null
+  clock_in_flag?: string | null
+  clock_out_flag?: string | null
+  overtime_minutes?: number | null
 }): PunchRecord {
-  return { id: row.id, clockInAt: row.clock_in_at, clockOutAt: row.clock_out_at }
+  return {
+    id: row.id,
+    clockInAt: row.clock_in_at,
+    clockOutAt: row.clock_out_at,
+    clockInFlag: (row.clock_in_flag as PunchRecord['clockInFlag']) ?? null,
+    clockOutFlag: (row.clock_out_flag as PunchRecord['clockOutFlag']) ?? null,
+    overtimeMinutes: row.overtime_minutes ?? 0,
+  }
 }
 
 /**
@@ -121,11 +134,36 @@ export async function getPunchesForDay(userId: string, dateKey: string): Promise
 
   const { data } = await supabase
     .from('punches')
-    .select('id, clock_in_at, clock_out_at')
+    .select('id, clock_in_at, clock_out_at, clock_in_flag, clock_out_flag, overtime_minutes')
     .eq('user_id', userId)
     .gte('clock_in_at', start.toISOString())
     .lt('clock_in_at', end.toISOString())
     .order('clock_in_at', { ascending: true })
 
   return (data ?? []).map(toPunchRecord)
+}
+
+/** Overtime minutes for a Nairobi month, summed per day, for the calendar's month view. */
+export async function getOvertimeMinutesForMonth(
+  userId: string,
+  year: number,
+  month: number
+): Promise<Map<string, number>> {
+  const supabase = await createClient()
+  const { start, end } = nairobiMonthRangeUtc(year, month)
+
+  const { data } = await supabase
+    .from('punches')
+    .select('clock_in_at, overtime_minutes')
+    .eq('user_id', userId)
+    .gte('clock_in_at', start.toISOString())
+    .lt('clock_in_at', end.toISOString())
+    .gt('overtime_minutes', 0)
+
+  const minutesByDay = new Map<string, number>()
+  for (const row of data ?? []) {
+    const dayKey = toNairobiDateKey(row.clock_in_at)
+    minutesByDay.set(dayKey, (minutesByDay.get(dayKey) ?? 0) + (row.overtime_minutes ?? 0))
+  }
+  return minutesByDay
 }
