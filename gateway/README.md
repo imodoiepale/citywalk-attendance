@@ -328,6 +328,8 @@ The simplest hPanel route after these files are committed and pushed:
    | `DEVICE_BRANCH` | `hq` |
    | `DEVICE_DIRECTION` | `null` |
    | `TZ` | `Africa/Nairobi` |
+   | `M50_TOKEN_SECRET` | A generated secret — keeps M50 WebSocket terminals registered across restarts |
+   | `LEGACY_TLS_PORT` | `8443`, only if an M82-generation terminal that speaks TLS 1.0 needs the legacy TLS sidecar (see below) |
 
    Add any `auth.secretEnv` variables your `destinations.yaml` names — e.g.
    `N8N_WEBHOOK_SECRET`. The container refuses to start if one is missing.
@@ -347,6 +349,35 @@ The simplest hPanel route after these files are committed and pushed:
 
    Do not expose `8090`, Postgres, or Supabase credentials. Close `8081` unless
    an HTTP-family device is actually using it.
+
+   Open **`8443`** too if any terminal needs the legacy TLS sidecar (below);
+   otherwise leave it closed.
+
+### M82 terminals that speak TLS 1.0
+
+Some M82-generation firmware always wraps its connection in TLS, regardless of
+the URL scheme configured on the terminal's own menu — but only negotiates
+TLS 1.0 with old CBC cipher suites, below Traefik's default minimum (TLS 1.2).
+Pointing such a terminal at the `GATEWAY_HOSTNAME` router will fail the TLS
+handshake before any request reaches the gateway at all, with nothing to see
+in the gateway's own logs — the connection never gets that far.
+
+Traefik's per-router TLS options (`minVersion`, `cipherSuites`) cannot be set
+from this compose file's Docker labels alone; they require Traefik's separate
+file provider, which lives outside this repository since Hostinger's Traefik
+is a pre-existing, separately-managed instance. `legacy-tls-sidecar` in
+`docker-compose.hostinger.yml` works around this by terminating that TLS
+itself — with an internally-generated self-signed certificate, regenerated
+fresh on each container start — and handing the gateway plain HTTP, published
+on its own port (`LEGACY_TLS_PORT`, default `8443`) so it bypasses Traefik
+entirely, the same way FkWeb's raw TCP `5005` already does.
+
+Point such a terminal's Web Server URL at `<VPS IP>:8443` instead of the
+Traefik hostname. If the terminal's firmware validates the certificate chain
+and rejects a self-signed one, the symptom is the TLS handshake completing —
+visible in the sidecar's own log — followed by an immediate connection close
+with no HTTP request ever sent; the fix at that point is mounting a CA-issued
+certificate instead of the generated one, not a code change.
 
 For SSH deployment instead, clone the repository, create `gateway/.env` and
 `gateway/devices.yaml`, then run `docker compose up -d --build` from `gateway/`.

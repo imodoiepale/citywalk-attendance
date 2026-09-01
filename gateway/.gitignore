@@ -7,3 +7,6 @@ devices.yaml
 spool/
 captures/*
 !captures/.gitkeep
+# Throwaway local TLS-terminator test artifacts.
+tls-proxy-local-test.mjs
+*.pem

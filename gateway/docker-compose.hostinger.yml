@@ -2,7 +2,18 @@
 #
 # That server already runs Hostinger's host-network Traefik project on 80/443.
 # The labels below join its HTTPS routing; the separate 8081 publication is the
-# initial plain-HTTP path for terminal firmware that cannot speak TLS.
+# plain-HTTP path for terminal firmware that speaks bare HTTP with no TLS at
+# all. Some M82-generation firmware is neither of those: it always wraps its
+# connection in TLS regardless of the URL scheme configured on the terminal's
+# own menu, but only speaks TLS 1.0 with old CBC cipher suites — below
+# Traefik's default minimum (TLS 1.2), and Traefik's per-router TLS options
+# cannot be set from Docker labels alone (they need its separate file
+# provider, which lives outside this compose file since Hostinger's Traefik is
+# a pre-existing, separately-managed instance). The `legacy-tls-sidecar`
+# service below terminates that TLS itself and hands the gateway plain HTTP,
+# published on its own port so it bypasses Traefik entirely — same reasoning
+# as why FkWeb's raw TCP port is published directly rather than routed
+# through it.
 #
 # Port 5005 is published because that is where FkWeb terminals dial. Traefik
 # terminates HTTPS for HTTP-family devices, but an FkWeb terminal speaks a raw
@@ -29,6 +40,11 @@ services:
       # Without it the gateway refuses to store a captured credential.
       BIOMETRIC_TEMPLATE_KEY: ${BIOMETRIC_TEMPLATE_KEY:-}
       BIOMETRIC_TEMPLATE_KEYS_PREVIOUS: ${BIOMETRIC_TEMPLATE_KEYS_PREVIOUS:-}
+      # M50 WebSocket Register/Login tokens are an HMAC of this. Without it,
+      # tokens fall back to BIOMETRIC_WEBHOOK_SECRET, then to a random value
+      # that changes every restart — forcing every M50 terminal to re-register
+      # each time the container restarts. Not fatal, just avoidable churn.
+      M50_TOKEN_SECRET: ${M50_TOKEN_SECRET:-}
       SPOOL_DIR: /var/lib/smart-sentinel/spool
       TZ: ${TZ:-Africa/Nairobi}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -83,6 +99,22 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+
+  # Only needed for M82-generation terminals that always speak TLS 1.0 with
+  # old cipher suites — see the header comment. Safe to leave running even if
+  # unused: nothing dials this port unless a terminal is pointed at it.
+  legacy-tls-sidecar:
+    build:
+      context: https://github.com/imodoiepale/citywalk-attendance.git#main:gateway/deploy/legacy-tls-sidecar
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      TLS_SIDECAR_BACKEND_HOST: gateway
+      TLS_SIDECAR_BACKEND_PORT: "8080"
+      GATEWAY_HOSTNAME: ${GATEWAY_HOSTNAME:-srv1631847.hstgr.cloud}
+    ports:
+      - "${LEGACY_TLS_PORT:-8443}:8443"
 
 volumes:
   spool:
