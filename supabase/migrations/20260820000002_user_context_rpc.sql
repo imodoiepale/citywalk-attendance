@@ -36,3 +36,7 @@ comment on function my_context is
   'Profile, branch and the caller''s permission map in a single round trip. Security definer so it can read role_permissions, which stays admin-only for direct table access — same reasoning as my_permissions().';
 
 grant execute on function my_context() to authenticated;
+
+-- New permission for the device estate. It must exist before the biometric
+-- device migration creates policies and role_permissions rows that use it.
+alter type app_permission add value if not exists 'admin.devices';
